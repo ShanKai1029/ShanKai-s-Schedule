@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>雲端新學期週課表</title>
+<style>
+:root{
+  --bg:#f6f8fc;--card:#fff;--text:#17213d;--muted:#6d7890;--line:#dfe5ee;
+  --accent:#4466cc;--danger:#c94646;--ok:#267a54;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select{font:inherit}button{cursor:pointer}
+.app{max-width:1500px;margin:auto;padding:22px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{margin:0;font-size:clamp(28px,4vw,48px)}
+.sub{margin:5px 0 0;color:var(--muted)}
+.actions,.form-actions,.auth-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:10px;font-weight:700}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(24,36,66,.06)}
+.schedule-wrap{overflow:auto}
+.schedule{min-width:1000px;display:grid;grid-template-columns:90px repeat(5,minmax(165px,1fr));grid-template-rows:56px repeat(690,1.2px);position:relative}
+.corner,.day,.time,.cell{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.corner,.day{display:flex;align-items:center;justify-content:center;font-weight:800}
+.corner{background:#eef2f8}
+.day.mon{background:#e2edfb}.day.tue{background:#e2f2e6}.day.wed{background:#fae4eb}.day.thu{background:#e9e4fa}.day.fri{background:#fff0c6}
+.time{display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-size:13px;color:#536078;background:#f9fbfd}
+.cell{background:#fff}
+.event{z-index:4;margin:1px 5px;border-radius:10px;border:2px solid;padding:3px 7px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:800;line-height:1.15;overflow:hidden;box-shadow:0 4px 10px rgba(30,45,70,.08);user-select:none}
+.event:hover{outline:2px solid rgba(68,102,204,.15)}
+.event .et{font-size:12px;margin-bottom:2px}.event .en{font-size:15px;word-break:break-word}
+.c-purple{background:#e7dcff;border-color:#9d78e8}.c-green{background:#d9f2e6;border-color:#6ac29b}
+.c-pink{background:#ffdce8;border-color:#e987ac}.c-yellow{background:#ffedbd;border-color:#dfb95b}
+.c-blue{background:#dcecff;border-color:#77a8e2}.c-orange{background:#ffe0ca;border-color:#e9a06b}
+.c-indigo{background:#e0e4ff;border-color:#8993e8}
+.editor,.auth-card,.setup-card{padding:18px}.editor{position:sticky;top:16px}
+.editor h2,.auth-card h2,.setup-card h2{margin:0 0 4px;font-size:22px}
+.helper,.status,.note{color:var(--muted);font-size:13px}.helper{margin-bottom:16px}
+.field{margin-bottom:12px}.field label{display:block;font-size:13px;font-weight:800;margin-bottom:5px}
+.field input,.field select{width:100%;border:1px solid #cfd7e3;border-radius:9px;padding:10px 11px;background:#fff;color:var(--text);outline:none}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-actions{margin-top:16px}.form-actions .btn{flex:1}.status{min-height:20px;margin-top:10px}
+.legend{padding:12px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.note{margin-top:10px}.hidden{display:none!important}
+.sync{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);padding:8px 0}
+.dot{width:9px;height:9px;border-radius:50%;background:#99a2b5}
+.dot.ok{background:var(--ok)}.dot.busy{background:#d99a2b}.dot.err{background:var(--danger)}
+.auth-shell{max-width:520px;margin:40px auto}
+.setup-warning{background:#fff8df;border:1px solid #ead89d;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px;line-height:1.5}
+.codehint{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f1f4f9;border-radius:6px;padding:2px 5px}
+@media(max-width:980px){.app{padding:14px}.layout{grid-template-columns:1fr}.editor{position:static}}
+@media print{body{background:#fff}.actions,.editor,.legend,.userbar{display:none!important}.layout{display:block}.card{box-shadow:none;border:none}.app{padding:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="setupView" class="auth-shell hidden">
+    <div class="card setup-card">
+      <h2>尚未設定 Supabase</h2>
+      <div class="setup-warning">
+        請先打開這個檔案，搜尋 <span class="codehint">SUPABASE_URL</span> 與
+        <span class="codehint">SUPABASE_PUBLISHABLE_KEY</span>，把兩個值換成你的 Supabase 專案資訊。
+      </div>
+      <div class="note">完成後重新上傳網站即可。詳細步驟請看同資料夾的 README.md。</div>
+    </div>
+  </div>
+
+  <div id="authView" class="auth-shell hidden">
+    <div class="card auth-card">
+      <h2>登入雲端課表</h2>
+      <div class="helper">使用同一個帳號登入不同裝置，就會看到同一份課表。</div>
+      <form id="authForm">
+        <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="password">密碼</label><input id="password" type="password" autocomplete="current-password" minlength="6" required></div>
+        <div class="auth-actions">
+          <button class="btn primary" id="signInBtn" type="submit">登入</button>
+          <button class="btn" id="signUpBtn" type="button">註冊</button>
+        </div>
+        <div class="status" id="authStatus" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="mainView" class="hidden">
+    <div class="top">
+      <div>
+        <h1>新學期開會週課表</h1>
+        <p class="sub">雲端同步版：在一台裝置修改，其他裝置會自動更新。</p>
+        <div class="sync"><span id="syncDot" class="dot"></span><span id="syncText">準備同步</span></div>
+      </div>
+      <div class="actions userbar">
+        <button class="btn" id="seedBtn" type="button">建立預設課表</button>
+        <button class="btn" id="exportBtn" type="button">匯出資料</button>
+        <button class="btn" id="importBtn" type="button">匯入資料</button>
+        <button class="btn" id="printBtn" type="button">列印</button>
+        <button class="btn" id="signOutBtn" type="button">登出</button>
+        <input id="importFile" type="file" accept="application/json" hidden>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <div class="schedule-wrap"><div class="schedule" id="schedule"></div></div>
+        <div class="legend">星期五「台達電」為隔週舉行。所有變更會寫入 Supabase 雲端資料庫。</div>
+      </div>
+
+      <aside class="card editor">
+        <h2 id="formTitle">新增事項</h2>
+        <div class="helper">可輸入任意分鐘，例如 14:20；位置與高度會依分鐘比例顯示。</div>
+        <form id="eventForm">
+          <input type="hidden" id="eventId">
+          <div class="field"><label for="name">事項名稱</label><input id="name" required maxlength="60" placeholder="例如：研究會議"></div>
+          <div class="field"><label for="day">星期</label><select id="day"><option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option><option value="4">星期四</option><option value="5">星期五</option></select></div>
+          <div class="row">
+            <div class="field"><label for="start">開始時間</label><input id="start" type="time" min="10:00" max="21:29" step="60" required></div>
+            <div class="field"><label for="end">結束時間</label><input id="end" type="time" min="10:01" max="21:30" step="60"></div>
+          </div>
+          <div class="field"><label for="color">顏色</label><select id="color"><option value="purple">紫色</option><option value="green">綠色</option><option value="pink">粉紅</option><option value="yellow">黃色</option><option value="blue">藍色</option><option value="orange">橘色</option><option value="indigo">靛藍</option></select></div>
+          <div class="form-actions">
+            <button class="btn primary" id="saveBtn" type="submit">新增</button>
+            <button class="btn" id="cancelBtn" type="button">清空</button>
+            <button class="btn danger" id="deleteBtn" type="button" hidden>刪除</button>
+          </div>
+          <div class="status" id="status" aria-live="polite"></div>
+        </form>
+        <div class="note">目前顯示範圍為 10:00–21:30。開始與結束時間都支援任意分鐘。</div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(()=>{
+"use strict";
+
+/* ===== 只需要修改這兩行 ===== */
+const SUPABASE_URL = "https://pqspnpulxhsreigxdarh.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_9kFSsQTr0VbC_t_YzsMzUg_DWYWpjoQ";
+/* ============================ */
+
+const TABLE = "schedule_events";
+const validColors = ["purple","green","pink","yellow","blue","orange","indigo"];
+const defaults = [
+  {name:"國科會量子",day:1,start_time:"18:00",end_time:"19:00",color:"green"},
+  {name:"台達電",day:2,start_time:"10:00",end_time:"11:00",color:"green"},
+  {name:"工研院",day:2,start_time:"15:00",end_time:"16:00",color:"purple"},
+  {name:"聯發科開會",day:2,start_time:"16:30",end_time:"17:30",color:"yellow"},
+  {name:"Group meeting",day:2,start_time:"17:30",end_time:"18:30",color:"pink"},
+  {name:"工研院內部會議",day:3,start_time:"11:00",end_time:"12:00",color:"purple"},
+  {name:"AI技術分享會",day:4,start_time:"20:00",end_time:"21:00",color:"indigo"},
+  {name:"國科會藥物",day:5,start_time:"10:30",end_time:"12:00",color:"orange"},
+  {name:"台達電（隔週）",day:5,start_time:"14:00",end_time:"15:00",color:"blue"}
+];
+
+const $ = id => document.getElementById(id);
+const setupView=$("setupView"),authView=$("authView"),mainView=$("mainView");
+const schedule=$("schedule"), form=$("eventForm"), idEl=$("eventId"), nameEl=$("name"), dayEl=$("day"),
+      startEl=$("start"), endEl=$("end"), colorEl=$("color"), saveBtn=$("saveBtn"),
+      deleteBtn=$("deleteBtn"), status=$("status"), formTitle=$("formTitle"),
+      authStatus=$("authStatus"), syncDot=$("syncDot"), syncText=$("syncText"), seedBtn=$("seedBtn");
+
+let sb=null, session=null, events=[], channel=null, loading=false;
+
+const configured = SUPABASE_URL.startsWith("https://") &&
+  !SUPABASE_URL.includes("YOUR_") &&
+  SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_") &&
+  !SUPABASE_PUBLISHABLE_KEY.includes("YOUR_");
+
+function showOnly(view){
+  [setupView,authView,mainView].forEach(v=>v.classList.add("hidden"));
+  view.classList.remove("hidden");
+}
+function setAuthMsg(t,e=false){authStatus.textContent=t||"";authStatus.style.color=e?"#b23838":""}
+function msg(t,e=false){status.textContent=t||"";status.style.color=e?"#b23838":""}
+function syncState(kind,text){
+  syncDot.className="dot"+(kind?" "+kind:"");
+  syncText.textContent=text;
+}
+function mins(t){
+  const p=String(t||"").slice(0,5).split(":").map(Number);
+  return p.length===2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) ? p[0]*60+p[1] : NaN;
+}
+function fmt(m){return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")}
+function normTime(t){return String(t||"").slice(0,5)}
+function row(t){return mins(t)-600+2}
+
+function base(){
+  schedule.innerHTML="";
+  const c=document.createElement("div");c.className="corner";c.style.gridColumn="1";c.style.gridRow="1";c.textContent="時間";schedule.appendChild(c);
+  ["星期一","星期二","星期三","星期四","星期五"].forEach((x,i)=>{
+    const d=document.createElement("div");d.className="day "+["mon","tue","wed","thu","fri"][i];d.style.gridColumn=String(i+2);d.style.gridRow="1";d.textContent=x;schedule.appendChild(d)
+  });
+  for(let i=0;i<23;i++){
+    const startRow=2+i*30;
+    const t=document.createElement("div");t.className="time";t.style.gridColumn="1";t.style.gridRow=startRow+" / span 30";t.textContent=fmt(600+i*30);schedule.appendChild(t);
+    for(let col=2;col<=6;col++){
+      const cell=document.createElement("div");cell.className="cell";cell.style.gridColumn=String(col);cell.style.gridRow=startRow+" / span 30";schedule.appendChild(cell)
+    }
+  }
+}
+function render(){
+  base();
+  events.slice().sort((a,b)=>a.day-b.day||mins(a.start_time)-mins(b.start_time)).forEach(ev=>{
+    const s=mins(ev.start_time), e=mins(ev.end_time);
+    if(!Number.isFinite(s)||s<600||s>1289)return;
+    const end=Number.isFinite(e)&&e>s?Math.min(e,1290):Math.min(s+60,1290);
+    const span=Math.max(1,end-s);
+    const b=document.createElement("button");b.type="button";b.className="event c-"+(validColors.includes(ev.color)?ev.color:"purple");
+    b.style.gridColumn=String(Number(ev.day)+1);b.style.gridRow=row(ev.start_time)+" / span "+span;
+    const tt=document.createElement("div");tt.className="et";tt.textContent=normTime(ev.start_time)+"–"+normTime(ev.end_time||fmt(end));
+    const nn=document.createElement("div");nn.className="en";nn.textContent=ev.name;
+    b.append(tt,nn);b.addEventListener("click",()=>edit(ev.id));schedule.appendChild(b);
+  });
+  seedBtn.disabled = events.length > 0;
+}
+
+function clearForm(){
+  idEl.value="";form.reset();dayEl.value="1";colorEl.value="purple";
+  formTitle.textContent="新增事項";saveBtn.textContent="新增";deleteBtn.hidden=true;msg("");
+}
+function edit(id){
+  const ev=events.find(x=>x.id===id);if(!ev)return;
+  idEl.value=ev.id;nameEl.value=ev.name;dayEl.value=String(ev.day);
+  startEl.value=normTime(ev.start_time);endEl.value=normTime(ev.end_time);colorEl.value=ev.color||"purple";
+  formTitle.textContent="修改事項";saveBtn.textContent="儲存修改";deleteBtn.hidden=false;msg("正在編輯："+ev.name);
+  if(innerWidth<980)document.querySelector(".editor").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+async function loadEvents(){
+  if(!session||loading)return;
+  loading=true;syncState("busy","同步中…");
+  const {data,error}=await sb.from(TABLE).select("*").order("day").order("start_time");
+  loading=false;
+  if(error){syncState("err","同步失敗");msg("讀取雲端資料失敗："+error.message,true);return}
+  events=(data||[]).map(x=>({...x,start_time:normTime(x.start_time),end_time:normTime(x.end_time)}));
+  render();syncState("ok","已同步");
+}
+
+async function subscribeRealtime(){
+  if(channel){await sb.removeChannel(channel);channel=null}
+  if(!session)return;
+  channel=sb.channel("schedule-"+session.user.id)
+    .on("postgres_changes",{event:"*",schema:"public",table:TABLE,filter:"user_id=eq."+session.user.id},()=>loadEvents())
+    .subscribe((state)=>{
+      if(state==="SUBSCRIBED")syncState("ok","即時同步已連線");
+      if(state==="CHANNEL_ERROR")syncState("err","即時同步連線失敗");
+    });
+}
+
+async function enterSession(newSession){
+  session=newSession;
+  if(!session){
+    events=[];render();showOnly(authView);syncState("","未登入");return;
+  }
+  showOnly(mainView);
+  clearForm();
+  await loadEvents();
+  await subscribeRealtime();
+}
+
+form.addEventListener("submit",async e=>{
+  e.preventDefault();if(!session)return;
+  const name=nameEl.value.trim(),day=Number(dayEl.value),start=startEl.value;let end=endEl.value;
+  const s=mins(start);
+  if(!name)return msg("請輸入事項名稱。",true);
+  if(day<1||day>5)return msg("星期設定不正確。",true);
+  if(!Number.isFinite(s)||s<600||s>1289)return msg("開始時間需介於 10:00–21:29。",true);
+  if(!end)end=fmt(Math.min(s+60,1290));
+  const en=mins(end);
+  if(!Number.isFinite(en)||en<=s||en>1290)return msg("結束時間必須晚於開始時間，且不超過 21:30。",true);
+
+  saveBtn.disabled=true;syncState("busy","儲存中…");
+  const payload={name,day,start_time:start,end_time:end,color:validColors.includes(colorEl.value)?colorEl.value:"purple",user_id:session.user.id};
+  let result;
+  if(idEl.value){
+    const {user_id,...updatePayload}=payload;
+    result=await sb.from(TABLE).update(updatePayload).eq("id",idEl.value);
+  }else{
+    result=await sb.from(TABLE).insert(payload);
+  }
+  saveBtn.disabled=false;
+  if(result.error){syncState("err","儲存失敗");return msg("儲存失敗："+result.error.message,true)}
+  clearForm();await loadEvents();
+});
+
+deleteBtn.addEventListener("click",async()=>{
+  if(!session)return;
+  const ev=events.find(x=>x.id===idEl.value);if(!ev)return;
+  if(!confirm("確定刪除「"+ev.name+"」嗎？"))return;
+  deleteBtn.disabled=true;syncState("busy","刪除中…");
+  const {error}=await sb.from(TABLE).delete().eq("id",ev.id);
+  deleteBtn.disabled=false;
+  if(error){syncState("err","刪除失敗");return msg("刪除失敗："+error.message,true)}
+  clearForm();await loadEvents();
+});
+
+$("cancelBtn").addEventListener("click",clearForm);
+$("printBtn").addEventListener("click",()=>print());
+
+seedBtn.addEventListener("click",async()=>{
+  if(!session||events.length>0)return;
+  if(!confirm("建立目前這份預設課表到雲端嗎？"))return;
+  seedBtn.disabled=true;syncState("busy","建立預設課表…");
+  const rows=defaults.map(x=>({...x,user_id:session.user.id}));
+  const {error}=await sb.from(TABLE).insert(rows);
+  if(error){seedBtn.disabled=false;syncState("err","建立失敗");return msg("建立預設課表失敗："+error.message,true)}
+  await loadEvents();
+});
+
+$("exportBtn").addEventListener("click",()=>{
+  const data=events.map(({id,user_id,created_at,updated_at,...x})=>({
+    ...x,start_time:normTime(x.start_time),end_time:normTime(x.end_time)
+  }));
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="schedule-data.json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+
+const importFile=$("importFile");
+$("importBtn").addEventListener("click",()=>importFile.click());
+importFile.addEventListener("change",()=>{
+  const file=importFile.files&&importFile.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=async()=>{
+    try{
+      const raw=JSON.parse(String(r.result));
+      if(!Array.isArray(raw))throw new Error("JSON 必須是陣列");
+      const rows=raw.slice(0,200).map(x=>{
+        const name=String(x.name||"").trim().slice(0,60);
+        const day=Number(x.day);
+        const start=normTime(x.start_time||x.start);
+        const end=normTime(x.end_time||x.end);
+        if(!name||day<1||day>5||!Number.isFinite(mins(start))||!Number.isFinite(mins(end))||mins(end)<=mins(start))throw new Error("資料中有無效的事項");
+        return {user_id:session.user.id,name,day,start_time:start,end_time:end,color:validColors.includes(x.color)?x.color:"purple"};
+      });
+      syncState("busy","匯入中…");
+      const {error}=await sb.from(TABLE).insert(rows);
+      if(error)throw error;
+      await loadEvents();msg("匯入完成。");
+    }catch(err){syncState("err","匯入失敗");msg("匯入失敗："+(err.message||"格式不正確"),true)}
+    importFile.value="";
+  };
+  r.readAsText(file,"utf-8");
+});
+
+$("authForm").addEventListener("submit",async e=>{
+  e.preventDefault();setAuthMsg("");
+  const email=$("email").value.trim(),password=$("password").value;
+  $("signInBtn").disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  $("signInBtn").disabled=false;
+  if(error)setAuthMsg("登入失敗："+error.message,true);
+});
+
+$("signUpBtn").addEventListener("click",async()=>{
+  const email=$("email").value.trim(),password=$("password").value;
+  if(!email||password.length<6)return setAuthMsg("請輸入 Email，密碼至少 6 個字元。",true);
+  $("signUpBtn").disabled=true;
+  const {data,error}=await sb.auth.signUp({email,password});
+  $("signUpBtn").disabled=false;
+  if(error)return setAuthMsg("註冊失敗："+error.message,true);
+  if(data.session)setAuthMsg("註冊完成，已登入。");
+  else setAuthMsg("註冊完成。若專案啟用了 Email 驗證，請先到信箱完成驗證後再登入。");
+});
+
+$("signOutBtn").addEventListener("click",async()=>{
+  await sb.auth.signOut();
+});
+
+async function init(){
+  if(!configured){showOnly(setupView);return}
+  if(!window.supabase||typeof window.supabase.createClient!=="function"){showOnly(setupView);return}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+  });
+  sb.auth.onAuthStateChange((_event,newSession)=>{
+    setTimeout(()=>enterSession(newSession),0);
+  });
+  const {data,error}=await sb.auth.getSession();
+  if(error){showOnly(authView);setAuthMsg("無法讀取登入狀態："+error.message,true);return}
+  await enterSession(data.session);
+}
+init();
+})();
+</script>
+</body>
+</html>
