@@ -83,6 +83,10 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 - 列印
 - 一鍵建立目前課表的預設內容
 
+## 版本紀錄
+
+- v1.2（2026-09-13）：新增多課表功能與總覽頁（開啟／新增／複製／刪除課表），所有確認動作都改用自訂小視窗。
+
 ## 安全提醒
 
 前端只應使用 **Publishable key**。不要把 Supabase 的 secret key 或 service_role key 寫進網頁。

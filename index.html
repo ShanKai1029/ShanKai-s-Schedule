@@ -71,8 +71,9 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .modal h3{margin:0 0 8px;font-size:19px}
 .modal p{margin:0 0 4px;color:var(--muted);font-size:14px;line-height:1.5}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.version-tag{position:fixed;right:10px;bottom:8px;font-size:11px;color:var(--muted);opacity:.7;pointer-events:none;z-index:40}
 @media(max-width:980px){.app{padding:14px}.layout{grid-template-columns:1fr}.editor{position:static}}
-@media print{body{background:#fff}.actions,.editor,.legend,.userbar{display:none!important}.layout{display:block}.card{box-shadow:none;border:none}.app{padding:0}}
+@media print{body{background:#fff}.actions,.editor,.legend,.userbar,.version-tag{display:none!important}.layout{display:block}.card{box-shadow:none;border:none}.app{padding:0}}
 </style>
 </head>
 <body>
@@ -182,6 +183,8 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
     </div>
   </div>
 </div>
+
+<div class="version-tag">v1.2</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
