@@ -1,6 +1,6 @@
 # Schedule
 
-這個版本會把課表存到 **Supabase**。同一個帳號在手機、平板、電腦登入後，會讀取同一份資料；若兩台裝置同時開啟，資料表變更也會透過 Realtime 重新載入。
+這個版本會把課表存到 **Supabase**。同一個帳號在手機、平板、電腦登入後，會讀取同一份資料；若兩台裝置同時開啟，資料表變更也會透過 Realtime 重新載入。一個帳號底下可以建立多份課表，並在總覽頁切換、新增、複製、刪除。
 
 ## 1. 建立 Supabase 專案
 
@@ -12,6 +12,15 @@
    - Publishable key（格式通常是 `sb_publishable_...`）
 
 > Publishable key 本來就可以放在瀏覽器端。真正的資料權限由 `setup.sql` 裡的 Row Level Security (RLS) 控制。不要把 secret/service_role key 放進 HTML。
+
+### 已經在用舊版（單一課表）的人：升級到多課表版本
+
+如果你的 Supabase 專案是舊版建的（只有 `schedule_events`，沒有 `schedules` 表），**不要**重新執行 `setup.sql`，改成：
+
+1. 打開 Supabase 的 **SQL Editor**。
+2. 把 `migration_multi_schedule.sql` 全部貼上並執行一次。
+
+這段 SQL 會新增 `schedules` 表，並自動幫每個帳號建立一份叫「我的課表」的課表、把原本的事項全部歸進去，不會遺失資料。
 
 ## 2. 把 Supabase 資訊填進 index.html
 
@@ -52,18 +61,27 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 
 網站本身只是一個 HTML；資料會存到 Supabase，所以不同裝置會共用。
 
+目前這個專案是用 **GitHub Pages** 部署，網址是：
+
+**https://shankai1029.github.io/ShanKai-s-Schedule/**
+
+推到 `main` 分支後，GitHub Pages 會自動重新部署，通常一兩分鐘內網址就會更新成最新版本。
+
 ## 目前功能
 
 - Email + 密碼登入 / 註冊
 - 每位帳號只能讀寫自己的課表
+- 一個帳號可以建立多份課表，用總覽頁切換
+- 總覽頁可以新增、複製、刪除課表，操作前都會跳出確認小視窗
+- 會記住上次瀏覽的畫面（總覽頁或某份課表），下次登入自動回到那裡
 - 新增 / 修改 / 刪除事項
 - 開始與結束時間可精確到任意分鐘
 - 14:20 會依比例放在 14:00–14:30 區間的約 2/3 位置
 - Supabase 雲端同步
 - Realtime 自動重新載入
-- 匯入 / 匯出 JSON
+- 匯入 / 匯出 JSON（範圍為目前開啟的課表）
 - 列印
-- 一鍵建立你目前的預設課表
+- 一鍵建立目前課表的預設內容
 
 ## 安全提醒
 

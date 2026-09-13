@@ -59,6 +59,18 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .auth-shell{max-width:520px;margin:40px auto}
 .setup-warning{background:#fff8df;border:1px solid #ead89d;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px;line-height:1.5}
 .codehint{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f1f4f9;border-radius:6px;padding:2px 5px}
+.schedule-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.schedule-item{padding:16px;display:flex;flex-direction:column;gap:10px}
+.schedule-item h3{margin:0;font-size:18px}
+.schedule-item .meta{color:var(--muted);font-size:13px}
+.schedule-item .schedule-item-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.schedule-item .schedule-item-actions .btn{flex:1;padding:8px 10px;font-size:13px}
+.empty-hint{color:var(--muted);padding:24px 4px}
+.modal-overlay{position:fixed;inset:0;background:rgba(23,33,61,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{max-width:420px;width:100%;padding:20px}
+.modal h3{margin:0 0 8px;font-size:19px}
+.modal p{margin:0 0 4px;color:var(--muted);font-size:14px;line-height:1.5}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 @media(max-width:980px){.app{padding:14px}.layout{grid-template-columns:1fr}.editor{position:static}}
 @media print{body{background:#fff}.actions,.editor,.legend,.userbar{display:none!important}.layout{display:block}.card{box-shadow:none;border:none}.app{padding:0}}
 </style>
@@ -92,14 +104,29 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
     </div>
   </div>
 
+  <div id="overviewView" class="hidden">
+    <div class="top">
+      <div>
+        <h1>所有課表</h1>
+        <p class="sub">選擇一份課表開始編輯，或建立新的課表。</p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="addScheduleBtn" type="button">+ 新增課表</button>
+        <button class="btn" id="overviewSignOutBtn" type="button">登出</button>
+      </div>
+    </div>
+    <div id="scheduleList" class="schedule-list"></div>
+  </div>
+
   <div id="mainView" class="hidden">
     <div class="top">
       <div>
-        <h1>Schedule</h1>
+        <h1 id="scheduleTitle">Schedule</h1>
         <p class="sub">雲端同步版：在一台裝置修改，其他裝置會自動更新。</p>
         <div class="sync"><span id="syncDot" class="dot"></span><span id="syncText">準備同步</span></div>
       </div>
       <div class="actions userbar">
+        <button class="btn" id="backToOverviewBtn" type="button">← 所有課表</button>
         <button class="btn" id="seedBtn" type="button">建立預設課表</button>
         <button class="btn" id="exportBtn" type="button">匯出資料</button>
         <button class="btn" id="importBtn" type="button">匯入資料</button>
@@ -140,6 +167,22 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
+<div id="modalOverlay" class="modal-overlay hidden">
+  <div class="card modal">
+    <h3 id="modalTitle"></h3>
+    <p id="modalMessage"></p>
+    <div class="field hidden" id="modalInputField">
+      <label id="modalInputLabel" for="modalInput"></label>
+      <input id="modalInput" type="text" maxlength="60">
+    </div>
+    <div class="status" id="modalStatus"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancelBtn" type="button">取消</button>
+      <button class="btn primary" id="modalConfirmBtn" type="button">確定</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (()=>{
@@ -151,6 +194,8 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_9kFSsQTr0VbC_t_YzsMzUg_DWYWpjoQ
 /* ============================ */
 
 const TABLE = "schedule_events";
+const SCHEDULES_TABLE = "schedules";
+const LAST_VIEW_PREFIX = "sk_last_schedule_";
 const validColors = ["purple","green","pink","yellow","blue","orange","indigo"];
 const defaults = [
   {name:"國科會量子",day:1,start_time:"18:00",end_time:"19:00",color:"green"},
@@ -165,13 +210,17 @@ const defaults = [
 ];
 
 const $ = id => document.getElementById(id);
-const setupView=$("setupView"),authView=$("authView"),mainView=$("mainView");
+const setupView=$("setupView"),authView=$("authView"),overviewView=$("overviewView"),mainView=$("mainView");
 const schedule=$("schedule"), form=$("eventForm"), idEl=$("eventId"), nameEl=$("name"), dayEl=$("day"),
       startEl=$("start"), endEl=$("end"), colorEl=$("color"), saveBtn=$("saveBtn"),
-      deleteBtn=$("deleteBtn"), status=$("status"), formTitle=$("formTitle"),
-      authStatus=$("authStatus"), syncDot=$("syncDot"), syncText=$("syncText"), seedBtn=$("seedBtn");
+      deleteBtn=$("deleteBtn"), status=$("status"), formTitle=$("formTitle"), scheduleTitle=$("scheduleTitle"),
+      authStatus=$("authStatus"), syncDot=$("syncDot"), syncText=$("syncText"), seedBtn=$("seedBtn"),
+      scheduleList=$("scheduleList"), addScheduleBtn=$("addScheduleBtn");
+const modalOverlay=$("modalOverlay"), modalTitle=$("modalTitle"), modalMessage=$("modalMessage"),
+      modalInputField=$("modalInputField"), modalInputLabel=$("modalInputLabel"), modalInput=$("modalInput"),
+      modalStatus=$("modalStatus"), modalCancelBtn=$("modalCancelBtn"), modalConfirmBtn=$("modalConfirmBtn");
 
-let sb=null, session=null, events=[], channel=null, loading=false;
+let sb=null, session=null, events=[], channel=null, loading=false, schedules=[], currentSchedule=null;
 
 const configured = SUPABASE_URL.startsWith("https://") &&
   !SUPABASE_URL.includes("YOUR_") &&
@@ -179,7 +228,7 @@ const configured = SUPABASE_URL.startsWith("https://") &&
   !SUPABASE_PUBLISHABLE_KEY.includes("YOUR_");
 
 function showOnly(view){
-  [setupView,authView,mainView].forEach(v=>v.classList.add("hidden"));
+  [setupView,authView,overviewView,mainView].forEach(v=>v.classList.add("hidden"));
   view.classList.remove("hidden");
 }
 function setAuthMsg(t,e=false){authStatus.textContent=t||"";authStatus.style.color=e?"#b23838":""}
@@ -188,6 +237,54 @@ function syncState(kind,text){
   syncDot.className="dot"+(kind?" "+kind:"");
   syncText.textContent=text;
 }
+
+function saveLastView(scheduleId){
+  if(!session)return;
+  try{localStorage.setItem(LAST_VIEW_PREFIX+session.user.id,scheduleId||"")}catch{}
+}
+function getLastView(){
+  if(!session)return"";
+  try{return localStorage.getItem(LAST_VIEW_PREFIX+session.user.id)||""}catch{return""}
+}
+
+let modalHandlers=null;
+function closeModal(){
+  modalOverlay.classList.add("hidden");
+  modalHandlers=null;
+  modalInput.value="";
+  modalStatus.textContent="";
+}
+function openModal({title,message,inputLabel,inputValue,confirmLabel,danger,onConfirm}){
+  modalTitle.textContent=title||"";
+  modalMessage.textContent=message||"";
+  modalMessage.classList.toggle("hidden",!message);
+  const hasInput=typeof inputLabel==="string";
+  modalInputField.classList.toggle("hidden",!hasInput);
+  if(hasInput){modalInputLabel.textContent=inputLabel;modalInput.value=inputValue||""}
+  modalConfirmBtn.textContent=confirmLabel||"確定";
+  modalConfirmBtn.className="btn"+(danger?" danger":" primary");
+  modalStatus.textContent="";
+  modalOverlay.classList.remove("hidden");
+  modalHandlers={onConfirm,hasInput};
+  (hasInput?modalInput:modalConfirmBtn).focus();
+}
+modalCancelBtn.addEventListener("click",closeModal);
+modalOverlay.addEventListener("click",e=>{if(e.target===modalOverlay)closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modalOverlay.classList.contains("hidden"))closeModal()});
+modalInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();modalConfirmBtn.click()}});
+modalConfirmBtn.addEventListener("click",async()=>{
+  if(!modalHandlers)return;
+  const value=modalHandlers.hasInput?modalInput.value.trim():undefined;
+  modalConfirmBtn.disabled=true;modalCancelBtn.disabled=true;
+  try{
+    await modalHandlers.onConfirm(value);
+    closeModal();
+  }catch(err){
+    modalStatus.textContent=(err&&err.message)||String(err);
+    modalStatus.style.color="#b23838";
+  }
+  modalConfirmBtn.disabled=false;modalCancelBtn.disabled=false;
+});
 function mins(t){
   const p=String(t||"").slice(0,5).split(":").map(Number);
   return p.length===2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) ? p[0]*60+p[1] : NaN;
@@ -239,9 +336,9 @@ function edit(id){
 }
 
 async function loadEvents(){
-  if(!session||loading)return;
+  if(!session||!currentSchedule||loading)return;
   loading=true;syncState("busy","同步中…");
-  const {data,error}=await sb.from(TABLE).select("*").order("day").order("start_time");
+  const {data,error}=await sb.from(TABLE).select("*").eq("schedule_id",currentSchedule.id).order("day").order("start_time");
   loading=false;
   if(error){syncState("err","同步失敗");msg("讀取雲端資料失敗："+error.message,true);return}
   events=(data||[]).map(x=>({...x,start_time:normTime(x.start_time),end_time:normTime(x.end_time)}));
@@ -250,28 +347,124 @@ async function loadEvents(){
 
 async function subscribeRealtime(){
   if(channel){await sb.removeChannel(channel);channel=null}
-  if(!session)return;
-  channel=sb.channel("schedule-"+session.user.id)
-    .on("postgres_changes",{event:"*",schema:"public",table:TABLE,filter:"user_id=eq."+session.user.id},()=>loadEvents())
+  if(!session||!currentSchedule)return;
+  channel=sb.channel("schedule-"+currentSchedule.id)
+    .on("postgres_changes",{event:"*",schema:"public",table:TABLE,filter:"schedule_id=eq."+currentSchedule.id},()=>loadEvents())
     .subscribe((state)=>{
       if(state==="SUBSCRIBED")syncState("ok","即時同步已連線");
       if(state==="CHANNEL_ERROR")syncState("err","即時同步連線失敗");
     });
 }
 
-async function enterSession(newSession){
-  session=newSession;
-  if(!session){
-    events=[];render();showOnly(authView);syncState("","未登入");return;
+async function loadSchedules(){
+  if(!session)return;
+  const {data,error}=await sb.from(SCHEDULES_TABLE).select("*").order("created_at");
+  if(error){msg("讀取課表清單失敗："+error.message,true);return}
+  schedules=data||[];
+}
+function renderOverview(){
+  scheduleList.innerHTML="";
+  if(schedules.length===0){
+    const p=document.createElement("p");p.className="empty-hint";p.textContent="還沒有課表，按上面的「+ 新增課表」建立第一份。";
+    scheduleList.appendChild(p);return;
   }
+  schedules.forEach(s=>{
+    const card=document.createElement("div");card.className="card schedule-item";
+    const h=document.createElement("h3");h.textContent=s.name;
+    const meta=document.createElement("div");meta.className="meta";
+    meta.textContent="建立於 "+new Date(s.created_at).toLocaleDateString("zh-TW");
+    const actions=document.createElement("div");actions.className="schedule-item-actions";
+    const openB=document.createElement("button");openB.type="button";openB.className="btn primary";openB.textContent="開啟";
+    openB.addEventListener("click",()=>openSchedule(s.id));
+    const dupB=document.createElement("button");dupB.type="button";dupB.className="btn";dupB.textContent="複製";
+    dupB.addEventListener("click",()=>duplicateSchedule(s));
+    const delB=document.createElement("button");delB.type="button";delB.className="btn danger";delB.textContent="刪除";
+    delB.addEventListener("click",()=>deleteSchedule(s));
+    actions.append(openB,dupB,delB);
+    card.append(h,meta,actions);
+    scheduleList.appendChild(card);
+  });
+}
+async function openSchedule(id){
+  const s=schedules.find(x=>x.id===id);if(!s)return;
+  currentSchedule=s;
+  scheduleTitle.textContent=s.name;
   showOnly(mainView);
   clearForm();
+  saveLastView(s.id);
   await loadEvents();
   await subscribeRealtime();
 }
+async function backToOverview(){
+  currentSchedule=null;
+  if(channel){await sb.removeChannel(channel);channel=null}
+  saveLastView("");
+  showOnly(overviewView);
+  await loadSchedules();
+  renderOverview();
+}
+function addSchedule(){
+  openModal({
+    title:"新增課表",inputLabel:"課表名稱",inputValue:"",confirmLabel:"建立",
+    onConfirm:async name=>{
+      if(!name)throw new Error("請輸入課表名稱。");
+      const {data,error}=await sb.from(SCHEDULES_TABLE).insert({name,user_id:session.user.id}).select().single();
+      if(error)throw error;
+      await loadSchedules();
+      await openSchedule(data.id);
+    }
+  });
+}
+function deleteSchedule(s){
+  openModal({
+    title:"刪除課表",message:"確定刪除「"+s.name+"」嗎？此課表內所有事項都會一併刪除，且無法復原。",
+    confirmLabel:"刪除",danger:true,
+    onConfirm:async()=>{
+      const {error}=await sb.from(SCHEDULES_TABLE).delete().eq("id",s.id);
+      if(error)throw error;
+      if(currentSchedule&&currentSchedule.id===s.id){currentSchedule=null;saveLastView("")}
+      await loadSchedules();
+      renderOverview();
+    }
+  });
+}
+function duplicateSchedule(s){
+  openModal({
+    title:"複製課表",inputLabel:"新課表名稱",inputValue:s.name+"（複製）",confirmLabel:"複製",
+    onConfirm:async name=>{
+      if(!name)throw new Error("請輸入課表名稱。");
+      const {data:newSchedule,error:createError}=await sb.from(SCHEDULES_TABLE).insert({name,user_id:session.user.id}).select().single();
+      if(createError)throw createError;
+      const {data:srcEvents,error:readError}=await sb.from(TABLE).select("*").eq("schedule_id",s.id);
+      if(readError)throw readError;
+      if(srcEvents&&srcEvents.length){
+        const rows=srcEvents.map(({id,schedule_id,created_at,updated_at,...x})=>({...x,schedule_id:newSchedule.id,user_id:session.user.id}));
+        const {error:insertError}=await sb.from(TABLE).insert(rows);
+        if(insertError)throw insertError;
+      }
+      await loadSchedules();
+      renderOverview();
+    }
+  });
+}
+
+async function enterSession(newSession){
+  session=newSession;
+  if(!session){
+    events=[];schedules=[];currentSchedule=null;render();showOnly(authView);syncState("","未登入");return;
+  }
+  await loadSchedules();
+  const lastId=getLastView();
+  if(lastId&&schedules.some(s=>s.id===lastId)){
+    await openSchedule(lastId);
+  }else{
+    showOnly(overviewView);
+    renderOverview();
+  }
+}
 
 form.addEventListener("submit",async e=>{
-  e.preventDefault();if(!session)return;
+  e.preventDefault();if(!session||!currentSchedule)return;
   const name=nameEl.value.trim(),day=Number(dayEl.value),start=startEl.value;let end=endEl.value;
   const s=mins(start);
   if(!name)return msg("請輸入事項名稱。",true);
@@ -282,10 +475,10 @@ form.addEventListener("submit",async e=>{
   if(!Number.isFinite(en)||en<=s||en>1290)return msg("結束時間必須晚於開始時間，且不超過 21:30。",true);
 
   saveBtn.disabled=true;syncState("busy","儲存中…");
-  const payload={name,day,start_time:start,end_time:end,color:validColors.includes(colorEl.value)?colorEl.value:"purple",user_id:session.user.id};
+  const payload={name,day,start_time:start,end_time:end,color:validColors.includes(colorEl.value)?colorEl.value:"purple",user_id:session.user.id,schedule_id:currentSchedule.id};
   let result;
   if(idEl.value){
-    const {user_id,...updatePayload}=payload;
+    const {user_id,schedule_id,...updatePayload}=payload;
     result=await sb.from(TABLE).update(updatePayload).eq("id",idEl.value);
   }else{
     result=await sb.from(TABLE).insert(payload);
@@ -295,28 +488,35 @@ form.addEventListener("submit",async e=>{
   clearForm();await loadEvents();
 });
 
-deleteBtn.addEventListener("click",async()=>{
+deleteBtn.addEventListener("click",()=>{
   if(!session)return;
   const ev=events.find(x=>x.id===idEl.value);if(!ev)return;
-  if(!confirm("確定刪除「"+ev.name+"」嗎？"))return;
-  deleteBtn.disabled=true;syncState("busy","刪除中…");
-  const {error}=await sb.from(TABLE).delete().eq("id",ev.id);
-  deleteBtn.disabled=false;
-  if(error){syncState("err","刪除失敗");return msg("刪除失敗："+error.message,true)}
-  clearForm();await loadEvents();
+  openModal({
+    title:"刪除事項",message:"確定刪除「"+ev.name+"」嗎？",confirmLabel:"刪除",danger:true,
+    onConfirm:async()=>{
+      syncState("busy","刪除中…");
+      const {error}=await sb.from(TABLE).delete().eq("id",ev.id);
+      if(error){syncState("err","刪除失敗");throw error}
+      clearForm();await loadEvents();
+    }
+  });
 });
 
 $("cancelBtn").addEventListener("click",clearForm);
 $("printBtn").addEventListener("click",()=>print());
 
-seedBtn.addEventListener("click",async()=>{
-  if(!session||events.length>0)return;
-  if(!confirm("建立目前這份預設課表到雲端嗎？"))return;
-  seedBtn.disabled=true;syncState("busy","建立預設課表…");
-  const rows=defaults.map(x=>({...x,user_id:session.user.id}));
-  const {error}=await sb.from(TABLE).insert(rows);
-  if(error){seedBtn.disabled=false;syncState("err","建立失敗");return msg("建立預設課表失敗："+error.message,true)}
-  await loadEvents();
+seedBtn.addEventListener("click",()=>{
+  if(!session||!currentSchedule||events.length>0)return;
+  openModal({
+    title:"建立預設課表",message:"建立目前這份預設課表到雲端嗎？",confirmLabel:"建立",
+    onConfirm:async()=>{
+      syncState("busy","建立預設課表…");
+      const rows=defaults.map(x=>({...x,user_id:session.user.id,schedule_id:currentSchedule.id}));
+      const {error}=await sb.from(TABLE).insert(rows);
+      if(error){syncState("err","建立失敗");throw error}
+      await loadEvents();
+    }
+  });
 });
 
 $("exportBtn").addEventListener("click",()=>{
@@ -332,6 +532,7 @@ const importFile=$("importFile");
 $("importBtn").addEventListener("click",()=>importFile.click());
 importFile.addEventListener("change",()=>{
   const file=importFile.files&&importFile.files[0];if(!file)return;
+  if(!currentSchedule){importFile.value="";return}
   const r=new FileReader();
   r.onload=async()=>{
     try{
@@ -343,7 +544,7 @@ importFile.addEventListener("change",()=>{
         const start=normTime(x.start_time||x.start);
         const end=normTime(x.end_time||x.end);
         if(!name||day<1||day>5||!Number.isFinite(mins(start))||!Number.isFinite(mins(end))||mins(end)<=mins(start))throw new Error("資料中有無效的事項");
-        return {user_id:session.user.id,name,day,start_time:start,end_time:end,color:validColors.includes(x.color)?x.color:"purple"};
+        return {user_id:session.user.id,schedule_id:currentSchedule.id,name,day,start_time:start,end_time:end,color:validColors.includes(x.color)?x.color:"purple"};
       });
       syncState("busy","匯入中…");
       const {error}=await sb.from(TABLE).insert(rows);
@@ -378,6 +579,11 @@ $("signUpBtn").addEventListener("click",async()=>{
 $("signOutBtn").addEventListener("click",async()=>{
   await sb.auth.signOut();
 });
+$("overviewSignOutBtn").addEventListener("click",async()=>{
+  await sb.auth.signOut();
+});
+$("backToOverviewBtn").addEventListener("click",backToOverview);
+addScheduleBtn.addEventListener("click",addSchedule);
 
 async function init(){
   if(!configured){showOnly(setupView);return}
