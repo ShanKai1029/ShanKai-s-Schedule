@@ -24,9 +24,12 @@ create table if not exists public.schedule_events (
   start_time text not null,
   end_time text not null,
   color text not null default 'purple',
+  notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- If upgrading an existing database, run:
+-- ALTER TABLE public.schedule_events ADD COLUMN IF NOT EXISTS notes text;
 alter table public.schedule_events enable row level security;
 create policy "events_select_own" on public.schedule_events for select using (auth.uid() = user_id);
 create policy "events_insert_own" on public.schedule_events for insert with check (auth.uid() = user_id);

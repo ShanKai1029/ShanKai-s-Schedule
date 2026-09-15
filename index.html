@@ -22,9 +22,12 @@ button,input,select{font:inherit}button{cursor:pointer}
 h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .sub{margin:5px 0 0;color:var(--muted)}
 .actions,.form-actions,.auth-actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:10px;font-weight:700}
+.btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:not(:disabled):hover{background:#eef2fb;border-color:#b0bcda}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:not(:disabled):hover{background:#3355bb;border-color:#3355bb}
 .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn.danger:not(:disabled):hover{background:#b03535;border-color:#b03535}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(24,36,66,.06)}
@@ -36,8 +39,8 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .day.mon{background:#e2edfb}.day.tue{background:#e2f2e6}.day.wed{background:#fae4eb}.day.thu{background:#e9e4fa}.day.fri{background:#fff0c6}
 .time{display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-size:13px;color:#536078;background:#f9fbfd}
 .cell{background:#fff}
-.event{z-index:4;margin:1px 5px;border-radius:10px;border:2px solid;padding:3px 7px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:800;line-height:1.15;overflow:hidden;box-shadow:0 4px 10px rgba(30,45,70,.08);user-select:none}
-.event:hover{outline:2px solid rgba(68,102,204,.15)}
+.event{z-index:4;margin:1px 5px;border-radius:10px;border:2px solid;padding:3px 7px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:800;line-height:1.15;overflow:hidden;box-shadow:0 4px 10px rgba(30,45,70,.08);user-select:none;cursor:pointer;position:relative;transition:outline .1s,box-shadow .1s}
+.event:hover{outline:2px solid rgba(68,102,204,.3);box-shadow:0 6px 16px rgba(30,45,70,.18)}
 .event .et{font-size:12px;margin-bottom:2px}.event .en{font-size:15px;word-break:break-word}
 .c-purple{background:#e7dcff;border-color:#9d78e8}.c-green{background:#d9f2e6;border-color:#6ac29b}
 .c-pink{background:#ffdce8;border-color:#e987ac}.c-yellow{background:#ffedbd;border-color:#dfb95b}
@@ -64,10 +67,10 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .schedule-item:hover{box-shadow:0 10px 26px rgba(24,36,66,.14);border-color:var(--accent);transform:translateY(-2px)}
 .schedule-item h3{margin:0;font-size:18px;padding-right:24px}
 .schedule-item .meta{color:var(--muted);font-size:13px}
-.schedule-menu-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;background:transparent;border-radius:8px;font-size:18px;line-height:1;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0}
+.schedule-menu-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;background:transparent;border-radius:8px;font-size:18px;line-height:1;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0;transition:background .15s,color .15s}
 .schedule-menu-btn:hover{background:#eef2f8;color:var(--text)}
 .schedule-menu{position:absolute;top:38px;right:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 24px rgba(24,36,66,.15);min-width:110px;overflow:hidden;z-index:10}
-.schedule-menu button{display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:none;font-weight:700;color:var(--text)}
+.schedule-menu button{display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:none;font-weight:700;color:var(--text);transition:background .15s}
 .schedule-menu button:hover{background:#f1f4f9}
 .schedule-menu button.danger{color:var(--danger)}
 .empty-hint{color:var(--muted);padding:24px 4px}
@@ -79,6 +82,16 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .version-tag{position:fixed;right:10px;bottom:8px;font-size:11px;color:var(--muted);opacity:.7;pointer-events:none;z-index:40}
 @media(max-width:980px){.app{padding:14px}.layout{grid-template-columns:1fr}.editor{position:static}}
 @media print{body{background:#fff}.actions,.editor,.legend,.userbar,.version-tag{display:none!important}.layout{display:block}.card{box-shadow:none;border:none}.app{padding:0}}
+.event-modal{max-width:500px;max-height:90vh;overflow-y:auto}
+.field textarea{width:100%;border:1px solid #cfd7e3;border-radius:9px;padding:10px 11px;background:#fff;color:var(--text);outline:none;resize:vertical;font:inherit;min-height:72px}
+.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
+.color-picker{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.color-btn{width:30px;height:30px;border-radius:50%;border:3px solid transparent;padding:0;cursor:pointer;transition:transform .12s,border-color .12s;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.color-btn:hover{transform:scale(1.18)}
+.color-btn.selected{border-color:#17213d;transform:scale(1.1)}
+.note-dot{position:absolute;bottom:3px;right:5px;font-size:8px;opacity:.55;line-height:1;pointer-events:none}
+.em-actions{justify-content:space-between}
+.em-actions-right{display:flex;gap:8px}
 </style>
 </head>
 <body>
@@ -132,6 +145,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
         <div class="sync"><span id="syncDot" class="dot"></span><span id="syncText">準備同步</span></div>
       </div>
       <div class="actions userbar">
+        <button class="btn primary" id="addEventBtn" type="button">＋ 新增</button>
         <button class="btn" id="backToOverviewBtn" type="button">← 所有課表</button>
         <button class="btn" id="seedBtn" type="button">建立預設課表</button>
         <button class="btn" id="exportBtn" type="button">匯出資料</button>
@@ -148,7 +162,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
         <div class="legend">星期五「台達電」為隔週舉行。所有變更會寫入 Supabase 雲端資料庫。</div>
       </div>
 
-      <aside class="card editor">
+      <aside class="card editor hidden">
         <h2 id="formTitle">新增事項</h2>
         <div class="helper">可輸入任意分鐘，例如 14:20；位置與高度會依分鐘比例顯示。</div>
         <form id="eventForm">
@@ -169,6 +183,45 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
         </form>
         <div class="note">目前顯示範圍為 10:00–21:30。開始與結束時間都支援任意分鐘。</div>
       </aside>
+    </div>
+  </div>
+</div>
+
+<div id="eventModalOverlay" class="modal-overlay hidden">
+  <div class="card modal event-modal">
+    <h3 id="emTitle">新增事項</h3>
+    <input type="hidden" id="emId">
+    <div class="field"><label for="emName">事項名稱</label><input id="emName" type="text" maxlength="60" placeholder="例如：研究會議" autocomplete="off"></div>
+    <div class="field"><label for="emDay">星期</label>
+      <select id="emDay">
+        <option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option>
+        <option value="4">星期四</option><option value="5">星期五</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="field"><label for="emStart">開始時間</label><input id="emStart" type="time" min="10:00" max="21:29" step="60"></div>
+      <div class="field"><label for="emEnd">結束時間</label><input id="emEnd" type="time" min="10:01" max="21:30" step="60"></div>
+    </div>
+    <div class="field">
+      <label>顏色</label>
+      <div class="color-picker" id="emColorPicker">
+        <button type="button" class="color-btn c-purple" data-color="purple" title="紫色"></button>
+        <button type="button" class="color-btn c-green" data-color="green" title="綠色"></button>
+        <button type="button" class="color-btn c-pink" data-color="pink" title="粉紅"></button>
+        <button type="button" class="color-btn c-yellow" data-color="yellow" title="黃色"></button>
+        <button type="button" class="color-btn c-blue" data-color="blue" title="藍色"></button>
+        <button type="button" class="color-btn c-orange" data-color="orange" title="橘色"></button>
+        <button type="button" class="color-btn c-indigo" data-color="indigo" title="靛藍"></button>
+      </div>
+    </div>
+    <div class="field"><label for="emNotes">備註</label><textarea id="emNotes" rows="3" maxlength="500" placeholder="可填入備註、提醒事項等…"></textarea></div>
+    <div class="status" id="emStatus" aria-live="polite"></div>
+    <div class="modal-actions em-actions">
+      <button class="btn danger hidden" id="emDeleteBtn" type="button">刪除</button>
+      <div class="em-actions-right">
+        <button class="btn" id="emCancelBtn" type="button">取消</button>
+        <button class="btn primary" id="emSaveBtn" type="button">新增</button>
+      </div>
     </div>
   </div>
 </div>
@@ -293,6 +346,90 @@ modalConfirmBtn.addEventListener("click",async()=>{
   }
   modalConfirmBtn.disabled=false;modalCancelBtn.disabled=false;
 });
+
+let emSelectedColor="purple";
+function setEmColor(c){
+  emSelectedColor=validColors.includes(c)?c:"purple";
+  document.querySelectorAll("#emColorPicker .color-btn").forEach(btn=>{
+    btn.classList.toggle("selected",btn.dataset.color===emSelectedColor);
+  });
+}
+function openEventModal(id){
+  $("emStatus").textContent="";
+  if(id){
+    const ev=events.find(x=>x.id===id);if(!ev)return;
+    $("emTitle").textContent="修改事項";
+    $("emId").value=ev.id;
+    $("emName").value=ev.name;
+    $("emDay").value=String(ev.day);
+    $("emStart").value=normTime(ev.start_time);
+    $("emEnd").value=normTime(ev.end_time);
+    $("emNotes").value=ev.notes||"";
+    setEmColor(ev.color||"purple");
+    $("emDeleteBtn").classList.remove("hidden");
+    $("emSaveBtn").textContent="儲存修改";
+  }else{
+    $("emTitle").textContent="新增事項";
+    $("emId").value="";$("emName").value="";$("emDay").value="1";
+    $("emStart").value="";$("emEnd").value="";$("emNotes").value="";
+    setEmColor("purple");
+    $("emDeleteBtn").classList.add("hidden");
+    $("emSaveBtn").textContent="新增";
+  }
+  $("eventModalOverlay").classList.remove("hidden");
+  setTimeout(()=>$("emName").focus(),50);
+}
+function closeEventModal(){$("eventModalOverlay").classList.add("hidden")}
+async function saveEventModal(){
+  if(!session||!currentSchedule)return;
+  const name=$("emName").value.trim(),day=Number($("emDay").value),start=$("emStart").value;
+  let end=$("emEnd").value;
+  const notes=$("emNotes").value.trim();
+  const emSt=$("emStatus"),emSaveBtn=$("emSaveBtn");
+  const setErr=t=>{emSt.textContent=t;emSt.style.color="#b23838"};
+  const s=mins(start);
+  if(!name)return setErr("請輸入事項名稱。");
+  if(day<1||day>5)return setErr("星期設定不正確。");
+  if(!Number.isFinite(s)||s<600||s>1289)return setErr("開始時間需介於 10:00–21:29。");
+  if(!end)end=fmt(Math.min(s+60,1290));
+  const en=mins(end);
+  if(!Number.isFinite(en)||en<=s||en>1290)return setErr("結束時間必須晚於開始時間，且不超過 21:30。");
+  emSaveBtn.disabled=true;syncState("busy","儲存中…");
+  const payload={name,day,start_time:start,end_time:end,color:emSelectedColor,notes:notes||null,user_id:session.user.id,schedule_id:currentSchedule.id};
+  let result;
+  const editId=$("emId").value;
+  if(editId){
+    const{user_id,schedule_id,...up}=payload;
+    result=await sb.from(TABLE).update(up).eq("id",editId);
+  }else{
+    result=await sb.from(TABLE).insert(payload);
+  }
+  emSaveBtn.disabled=false;
+  if(result.error){syncState("err","儲存失敗");setErr("儲存失敗："+result.error.message);return}
+  closeEventModal();await loadEvents();
+}
+function deleteEventModal(){
+  const editId=$("emId").value;
+  const ev=events.find(x=>x.id===editId);if(!ev)return;
+  closeEventModal();
+  openModal({
+    title:"刪除事項",message:"確定刪除「"+ev.name+"」嗎？",confirmLabel:"刪除",danger:true,
+    onConfirm:async()=>{
+      syncState("busy","刪除中…");
+      const{error}=await sb.from(TABLE).delete().eq("id",ev.id);
+      if(error){syncState("err","刪除失敗");throw error}
+      await loadEvents();
+    }
+  });
+}
+$("emCancelBtn").addEventListener("click",closeEventModal);
+$("eventModalOverlay").addEventListener("click",e=>{if(e.target===$("eventModalOverlay"))closeEventModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("eventModalOverlay").classList.contains("hidden"))closeEventModal()});
+$("emSaveBtn").addEventListener("click",saveEventModal);
+$("emDeleteBtn").addEventListener("click",deleteEventModal);
+document.querySelectorAll("#emColorPicker .color-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>setEmColor(btn.dataset.color));
+});
 function mins(t){
   const p=String(t||"").slice(0,5).split(":").map(Number);
   return p.length===2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) ? p[0]*60+p[1] : NaN;
@@ -326,7 +463,9 @@ function render(){
     b.style.gridColumn=String(Number(ev.day)+1);b.style.gridRow=row(ev.start_time)+" / span "+span;
     const tt=document.createElement("div");tt.className="et";tt.textContent=normTime(ev.start_time)+"–"+normTime(ev.end_time||fmt(end));
     const nn=document.createElement("div");nn.className="en";nn.textContent=ev.name;
-    b.append(tt,nn);b.addEventListener("click",()=>edit(ev.id));schedule.appendChild(b);
+    b.append(tt,nn);
+    if(ev.notes){const nd=document.createElement("span");nd.className="note-dot";nd.title=ev.notes;nd.textContent="●";b.appendChild(nd)}
+    b.addEventListener("click",()=>openEventModal(ev.id));schedule.appendChild(b);
   });
   seedBtn.disabled = events.length > 0;
 }
@@ -335,13 +474,7 @@ function clearForm(){
   idEl.value="";form.reset();dayEl.value="1";colorEl.value="purple";
   formTitle.textContent="新增事項";saveBtn.textContent="新增";deleteBtn.hidden=true;msg("");
 }
-function edit(id){
-  const ev=events.find(x=>x.id===id);if(!ev)return;
-  idEl.value=ev.id;nameEl.value=ev.name;dayEl.value=String(ev.day);
-  startEl.value=normTime(ev.start_time);endEl.value=normTime(ev.end_time);colorEl.value=ev.color||"purple";
-  formTitle.textContent="修改事項";saveBtn.textContent="儲存修改";deleteBtn.hidden=false;msg("正在編輯："+ev.name);
-  if(innerWidth<980)document.querySelector(".editor").scrollIntoView({behavior:"smooth",block:"start"});
-}
+function edit(id){openEventModal(id)}
 
 async function loadEvents(){
   if(!session||!currentSchedule||loading)return;
@@ -606,6 +739,7 @@ $("signOutBtn").addEventListener("click",async()=>{
 $("overviewSignOutBtn").addEventListener("click",async()=>{
   await sb.auth.signOut();
 });
+$("addEventBtn").addEventListener("click",()=>openEventModal());
 $("backToOverviewBtn").addEventListener("click",backToOverview);
 addScheduleBtn.addEventListener("click",addSchedule);
 
