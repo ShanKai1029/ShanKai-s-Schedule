@@ -92,10 +92,14 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .note-dot{position:absolute;bottom:3px;right:5px;font-size:8px;opacity:.55;line-height:1;pointer-events:none}
 .em-actions{justify-content:space-between}
 .em-actions-right{display:flex;gap:8px}
-.event-info-modal{max-width:380px}
+.event-info-modal{max-width:540px}
 .ei-strip{height:6px;border-radius:6px 6px 0 0;margin:-20px -20px 14px}
 .ei-meta{color:var(--muted);font-size:14px;margin:4px 0 0}
 .ei-notes{background:#f6f8fc;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.6;margin-top:10px;white-space:pre-wrap}
+.ei-notes a{color:var(--accent);word-break:break-all;text-decoration:underline}
+.ei-img{max-width:100%;border-radius:8px;margin-top:6px;display:block;cursor:pointer}
+.upload-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.upload-status{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -196,7 +200,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
     <div class="ei-strip" id="eiStrip"></div>
     <h3 id="eiName"></h3>
     <p id="eiMeta" class="ei-meta"></p>
-    <p id="eiNotes" class="ei-notes hidden"></p>
+    <div id="eiNotes" class="ei-notes hidden"></div>
     <div class="modal-actions">
       <button class="btn" id="eiCloseBtn" type="button">關閉</button>
       <button class="btn primary" id="eiEditBtn" type="button">修改</button>
@@ -231,7 +235,12 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
         <button type="button" class="color-btn c-indigo" data-color="indigo" title="靛藍"></button>
       </div>
     </div>
-    <div class="field"><label for="emNotes">備註</label><textarea id="emNotes" rows="3" maxlength="500" placeholder="可填入備註、提醒事項等…"></textarea></div>
+    <div class="field"><label for="emNotes">說明</label><textarea id="emNotes" rows="3" maxlength="2000" placeholder="可填入說明、連結、圖片等…"></textarea></div>
+    <div class="upload-row">
+      <button type="button" class="btn" id="emImgBtn">📎 上傳圖片</button>
+      <span id="emImgStatus" class="upload-status"></span>
+    </div>
+    <input id="emImgFile" type="file" accept="image/*" hidden>
     <div class="status" id="emStatus" aria-live="polite"></div>
     <div class="modal-actions em-actions">
       <button class="btn danger hidden" id="emDeleteBtn" type="button">刪除</button>
@@ -259,7 +268,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
-<div class="version-tag">v1.2.3</div>
+<div class="version-tag">v1.2.4</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -366,6 +375,16 @@ modalConfirmBtn.addEventListener("click",async()=>{
 
 const colorBorder={purple:"#9d78e8",green:"#6ac29b",pink:"#e987ac",yellow:"#dfb95b",blue:"#77a8e2",orange:"#e9a06b",indigo:"#8993e8"};
 const dayNames=["","星期一","星期二","星期三","星期四","星期五"];
+
+function renderNotes(text){
+  const esc=text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return esc.replace(/(https?:\/\/[^\s]+)/g,u=>{
+    const isImg=/\.(jpe?g|png|gif|webp|svg)(\?[^\s]*)?$/i.test(u)||u.includes("/storage/v1/object/public/");
+    if(isImg)return`<a href="${u}" target="_blank" rel="noopener noreferrer"><img src="${u}" class="ei-img" loading="lazy"></a>`;
+    return`<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`;
+  });
+}
+
 let eiCurrentId=null;
 function openEventInfo(id){
   const ev=events.find(x=>x.id===id);if(!ev)return;
@@ -374,7 +393,7 @@ function openEventInfo(id){
   $("eiName").textContent=ev.name;
   $("eiMeta").textContent=(dayNames[ev.day]||"")+" · "+normTime(ev.start_time)+"–"+normTime(ev.end_time);
   const notesEl=$("eiNotes");
-  if(ev.notes){notesEl.textContent=ev.notes;notesEl.classList.remove("hidden")}
+  if(ev.notes){notesEl.innerHTML=renderNotes(ev.notes);notesEl.classList.remove("hidden")}
   else{notesEl.classList.add("hidden")}
   $("eventInfoOverlay").classList.remove("hidden");
 }
@@ -467,6 +486,20 @@ $("emDeleteBtn").addEventListener("click",deleteEventModal);
 document.querySelectorAll("#emColorPicker .color-btn").forEach(btn=>{
   btn.addEventListener("click",()=>setEmColor(btn.dataset.color));
 });
+$("emImgBtn").addEventListener("click",()=>$("emImgFile").click());
+$("emImgFile").addEventListener("change",async()=>{
+  const file=$("emImgFile").files[0];if(!file||!session)return;
+  const ext=file.name.split(".").pop().toLowerCase();
+  const path=`${session.user.id}/${Date.now()}.${ext}`;
+  $("emImgStatus").textContent="上傳中…";
+  const{error}=await sb.storage.from("event-images").upload(path,file,{upsert:true});
+  if(error){$("emImgStatus").textContent="上傳失敗";return}
+  const{data:{publicUrl}}=sb.storage.from("event-images").getPublicUrl(path);
+  const ta=$("emNotes");
+  ta.value=(ta.value?ta.value+"\n":"")+publicUrl;
+  $("emImgStatus").textContent="已上傳";
+  $("emImgFile").value="";
+});
 function mins(t){
   const p=String(t||"").slice(0,5).split(":").map(Number);
   return p.length===2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) ? p[0]*60+p[1] : NaN;
@@ -489,8 +522,30 @@ function base(){
     }
   }
 }
+function computeLanes(evList){
+  if(!evList.length)return{};
+  const result={};
+  const sorted=evList.slice().sort((a,b)=>mins(a.start_time)-mins(b.start_time));
+  const laneEnds=[];
+  sorted.forEach(ev=>{
+    const s=mins(ev.start_time),e=mins(ev.end_time)||Math.min(s+60,1290);
+    let lane=-1;
+    for(let i=0;i<laneEnds.length;i++){if(laneEnds[i]<=s){lane=i;laneEnds[i]=e;break}}
+    if(lane===-1){lane=laneEnds.length;laneEnds.push(e)}
+    const total=sorted.filter(o=>{
+      const os=mins(o.start_time),oe=mins(o.end_time)||Math.min(os+60,1290);
+      return os<e&&oe>s;
+    }).length;
+    result[ev.id]={lane,total};
+  });
+  return result;
+}
 function render(){
   base();
+  const byDay={};
+  events.forEach(ev=>{if(!byDay[ev.day])byDay[ev.day]=[];byDay[ev.day].push(ev)});
+  const laneMap={};
+  Object.entries(byDay).forEach(([,evs])=>Object.assign(laneMap,computeLanes(evs)));
   events.slice().sort((a,b)=>a.day-b.day||mins(a.start_time)-mins(b.start_time)).forEach(ev=>{
     const s=mins(ev.start_time), e=mins(ev.end_time);
     if(!Number.isFinite(s)||s<480||s>1289)return;
@@ -498,6 +553,13 @@ function render(){
     const span=Math.max(1,end-s);
     const b=document.createElement("button");b.type="button";b.className="event c-"+(validColors.includes(ev.color)?ev.color:"purple");
     b.style.gridColumn=String(Number(ev.day)+1);b.style.gridRow=row(ev.start_time)+" / span "+span;
+    const {lane=0,total=1}=laneMap[ev.id]||{};
+    if(total>1){
+      const pct=100/total;
+      b.style.width="calc("+pct+"% - 4px)";
+      b.style.marginLeft="calc("+lane*pct+"% + 2px)";
+      b.style.marginRight="0";
+    }
     const tt=document.createElement("div");tt.className="et";tt.textContent=normTime(ev.start_time)+"–"+normTime(ev.end_time||fmt(end));
     const nn=document.createElement("div");nn.className="en";nn.textContent=ev.name;
     b.append(tt,nn);
