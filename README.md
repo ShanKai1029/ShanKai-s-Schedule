@@ -75,7 +75,10 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 - 總覽頁可以新增、複製、刪除課表，操作前都會跳出確認小視窗
 - 會記住上次瀏覽的畫面（總覽頁或某份課表），下次登入自動回到那裡
 - 新增 / 修改 / 刪除事項（點事項先顯示資訊，按「修改」再進編輯）
-- 每個事項可填寫備註，有備註時卡片右下角顯示小圓點
+- 每個事項可填寫說明，有說明時卡片右下角顯示小圓點；說明中的網址自動轉為超連結，圖片網址直接顯示圖片
+- 說明欄可上傳圖片至 Supabase Storage（需先在 Supabase 建立 storage bucket，詳見下方升級說明）
+- 同一天同一時段有多個事項時，自動並排顯示，不會互相覆蓋
+- 課表右側有全帳號共用的待辦事項清單，可設定到期日與時間；依過期 / 今天 / 之後分組顯示
 - 時間格顯示範圍 08:00–21:30
 - 開始與結束時間可精確到任意分鐘
 - 14:20 會依比例放在 14:00–14:30 區間的約 2/3 位置
@@ -87,8 +90,10 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 
 ## 版本紀錄
 
-- v1.2.3（2026-09-15）：課表頁面置中；時間格從 08:00 開始（原為 10:00）；點擊事項先顯示資訊視窗（名稱、時間、備註），需按「修改」才進入編輯。
-- v1.2.2（2026-09-15）：所有按鈕加上 hover 動態效果；頂部新增「＋ 新增」按鈕；新增／修改事項改用 modal 視窗操作；每個事項可填寫備註，有備註時事項卡片右下角顯示小圓點。**升級說明**：現有資料庫需執行以下 SQL 新增備註欄位：`ALTER TABLE public.schedule_events ADD COLUMN IF NOT EXISTS notes text;`
+- v1.3.0（2026-09-16）：新增待辦事項功能。課表右側顯示全帳號共用的待辦清單，每項可設定到期日與時間，依過期 / 今天 / 之後自動分組，可勾選完成、刪除，雲端即時同步。**升級說明**：需在 Supabase SQL Editor 執行以下 SQL 建立 todos 表：`CREATE TABLE IF NOT EXISTS public.todos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, text text NOT NULL, done boolean NOT NULL DEFAULT false, due_date date, due_time time, created_at timestamptz NOT NULL DEFAULT now()); ALTER TABLE public.todos ENABLE ROW LEVEL SECURITY;` 並建立 SELECT / INSERT / UPDATE / DELETE 的 RLS Policy（參考 setup.sql）。
+- v1.2.4（2026-09-15）：說明欄（原「備註」）支援 URL 自動轉超連結；圖片網址直接顯示圖片；可上傳圖片至 Supabase Storage；資訊視窗放大（540px）；同一時段多個事項自動並排。**升級說明（圖片上傳功能）**：需在 Supabase SQL Editor 執行以下 SQL 建立圖片 bucket：`INSERT INTO storage.buckets (id, name, public) VALUES ('event-images', 'event-images', true) ON CONFLICT DO NOTHING;` 並建立對應的 Storage Policies（INSERT/SELECT/DELETE）。
+- v1.2.3（2026-09-15）：課表頁面置中；時間格從 08:00 開始（原為 10:00）；點擊事項先顯示資訊視窗（名稱、時間、說明），需按「修改」才進入編輯。
+- v1.2.2（2026-09-15）：所有按鈕加上 hover 動態效果；頂部新增「＋ 新增」按鈕；新增／修改事項改用 modal 視窗操作；每個事項可填寫說明，有說明時事項卡片右下角顯示小圓點。**升級說明**：現有資料庫需執行以下 SQL 新增說明欄位：`ALTER TABLE public.schedule_events ADD COLUMN IF NOT EXISTS notes text;`
 - v1.2（2026-09-13）：新增多課表功能與總覽頁（開啟／新增／複製／刪除課表），所有確認動作都改用自訂小視窗。
 
 ## 安全提醒

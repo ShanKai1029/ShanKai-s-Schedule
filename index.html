@@ -29,7 +29,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
 .btn.danger:not(:disabled):hover{background:#b03535;border-color:#b03535}
 .btn:disabled{opacity:.55;cursor:not-allowed}
-.layout{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
+.layout{display:grid;grid-template-columns:1fr 280px;gap:18px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(24,36,66,.06)}
 .schedule-wrap{overflow:auto}
 .schedule{min-width:1000px;display:grid;grid-template-columns:90px repeat(5,minmax(165px,1fr));grid-template-rows:56px repeat(810,1.2px);position:relative}
@@ -100,6 +100,30 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .ei-img{max-width:100%;border-radius:8px;margin-top:6px;display:block;cursor:pointer}
 .upload-row{display:flex;align-items:center;gap:8px;margin-top:6px}
 .upload-status{font-size:12px;color:var(--muted)}
+.todo-panel{padding:18px;position:sticky;top:16px}
+.todo-panel h2{margin:0 0 12px;font-size:18px}
+.todo-group-label{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:10px 0 4px 4px}
+.todo-group-label.overdue{color:#c94646}
+.todo-group-label.today{color:var(--accent)}
+.todo-list{display:flex;flex-direction:column;gap:1px;margin-bottom:12px;max-height:60vh;overflow-y:auto}
+.todo-item{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:9px;transition:background .12s}
+.todo-item:hover{background:#f1f4fb}
+.todo-item-body{flex:1;min-width:0}
+.todo-item-text{font-size:14px;line-height:1.4;cursor:pointer;word-break:break-word;display:block}
+.todo-item-due{font-size:11px;color:var(--muted);margin-top:2px}
+.todo-item.done .todo-item-text{color:var(--muted);text-decoration:line-through}
+.todo-item.overdue .todo-item-due{color:#c94646}
+.todo-check{width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;margin-top:2px}
+.todo-del{border:none;background:none;color:var(--muted);font-size:18px;line-height:1;padding:1px 5px;border-radius:6px;opacity:0;transition:opacity .12s,background .12s;cursor:pointer;flex-shrink:0}
+.todo-item:hover .todo-del{opacity:1}
+.todo-del:hover{background:#f1e0e0;color:var(--danger)}
+.todo-form{display:flex;flex-direction:column;gap:6px;margin-top:4px;border-top:1px solid var(--line);padding-top:12px}
+.todo-input{width:100%;border:1px solid #cfd7e3;border-radius:9px;padding:8px 10px;font:inherit;color:var(--text);outline:none}
+.todo-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
+.todo-date-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.todo-date-row input{width:100%;border:1px solid #cfd7e3;border-radius:9px;padding:7px 8px;font:inherit;font-size:13px;color:var(--text);outline:none}
+.todo-date-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
+.todo-empty{color:var(--muted);font-size:13px;padding:6px 0}
 </style>
 </head>
 <body>
@@ -168,6 +192,19 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
       <div class="card">
         <div class="schedule-wrap"><div class="schedule" id="schedule"></div></div>
         <div class="legend">星期五「台達電」為隔週舉行。所有變更會寫入 Supabase 雲端資料庫。</div>
+      </div>
+
+      <div class="card todo-panel" id="todoPanel">
+        <h2>待辦事項</h2>
+        <div id="todoList" class="todo-list"></div>
+        <form id="todoForm" class="todo-form" autocomplete="off">
+          <input id="todoInput" type="text" maxlength="100" placeholder="新增待辦事項…" class="todo-input">
+          <div class="todo-date-row">
+            <input id="todoDueDate" type="date" title="到期日">
+            <input id="todoDueTime" type="time" title="到期時間（可選）">
+          </div>
+          <button type="submit" class="btn primary">＋ 新增</button>
+        </form>
       </div>
 
       <aside class="card editor hidden">
@@ -268,7 +305,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
-<div class="version-tag">v1.2.4</div>
+<div class="version-tag">v1.3.0</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -372,6 +409,77 @@ modalConfirmBtn.addEventListener("click",async()=>{
   }
   modalConfirmBtn.disabled=false;modalCancelBtn.disabled=false;
 });
+
+const TODOS_TABLE="todos";
+let todos=[];
+
+function groupTodos(){
+  const todayStr=new Date().toISOString().slice(0,10);
+  const now=new Date();const nowMins=now.getHours()*60+now.getMinutes();
+  const groups={overdue:[],today:[],later:[]};
+  todos.forEach(t=>{
+    if(!t.due_date){groups.later.push(t);return}
+    if(t.due_date<todayStr){groups.overdue.push(t);return}
+    if(t.due_date===todayStr){
+      if(t.due_time){const[h,m]=t.due_time.split(":").map(Number);if(h*60+m<nowMins){groups.overdue.push(t);return}}
+      groups.today.push(t);return;
+    }
+    groups.later.push(t);
+  });
+  return groups;
+}
+function makeTodoRow(todo,isOverdue){
+  const row=document.createElement("div");
+  row.className="todo-item"+(todo.done?" done":"")+(isOverdue?" overdue":"");
+  const uid="tc-"+todo.id.replace(/-/g,"").slice(0,8);
+  const cb=document.createElement("input");cb.type="checkbox";cb.className="todo-check";cb.id=uid;cb.checked=todo.done;
+  cb.addEventListener("change",()=>toggleTodo(todo.id,cb.checked));
+  const body=document.createElement("div");body.className="todo-item-body";
+  const lb=document.createElement("label");lb.htmlFor=uid;lb.className="todo-item-text";lb.textContent=todo.text;
+  body.appendChild(lb);
+  if(todo.due_date){
+    const due=document.createElement("div");due.className="todo-item-due";
+    due.textContent=todo.due_date+(todo.due_time?" "+todo.due_time.slice(0,5):"");
+    body.appendChild(due);
+  }
+  const del=document.createElement("button");del.type="button";del.className="todo-del";del.textContent="×";del.title="刪除";
+  del.addEventListener("click",()=>deleteTodo(todo.id));
+  row.append(cb,body,del);return row;
+}
+function renderTodos(){
+  const list=$("todoList");list.innerHTML="";
+  const groups=groupTodos();
+  const sections=[{key:"overdue",label:"過期",cls:"overdue"},{key:"today",label:"今天",cls:"today"},{key:"later",label:"之後",cls:""}];
+  let any=false;
+  sections.forEach(({key,label,cls})=>{
+    const items=groups[key];if(!items.length)return;any=true;
+    const lbl=document.createElement("div");lbl.className="todo-group-label"+(cls?" "+cls:"");lbl.textContent=label;
+    list.appendChild(lbl);
+    items.forEach(t=>list.appendChild(makeTodoRow(t,key==="overdue")));
+  });
+  if(!any){const p=document.createElement("p");p.className="todo-empty";p.textContent="沒有待辦事項";list.appendChild(p)}
+}
+async function loadTodos(){
+  if(!session)return;
+  const{data,error}=await sb.from(TODOS_TABLE).select("*").eq("user_id",session.user.id).order("due_date",{nullsFirst:false}).order("due_time",{nullsFirst:false}).order("created_at");
+  if(!error){todos=data||[];renderTodos()}
+}
+async function addTodo(text,dueDate,dueTime){
+  if(!session||!text)return;
+  const row={text,done:false,user_id:session.user.id};
+  if(dueDate)row.due_date=dueDate;
+  if(dueTime)row.due_time=dueTime;
+  const{error}=await sb.from(TODOS_TABLE).insert(row);
+  if(!error)await loadTodos();
+}
+async function toggleTodo(id,done){
+  todos=todos.map(t=>t.id===id?{...t,done}:t);renderTodos();
+  await sb.from(TODOS_TABLE).update({done}).eq("id",id);
+}
+async function deleteTodo(id){
+  todos=todos.filter(t=>t.id!==id);renderTodos();
+  await sb.from(TODOS_TABLE).delete().eq("id",id);
+}
 
 const colorBorder={purple:"#9d78e8",green:"#6ac29b",pink:"#e987ac",yellow:"#dfb95b",blue:"#77a8e2",orange:"#e9a06b",indigo:"#8993e8"};
 const dayNames=["","星期一","星期二","星期三","星期四","星期五"];
@@ -707,9 +815,10 @@ function duplicateSchedule(s){
 async function enterSession(newSession){
   session=newSession;
   if(!session){
-    events=[];schedules=[];currentSchedule=null;render();showOnly(authView);syncState("","未登入");return;
+    events=[];schedules=[];currentSchedule=null;todos=[];renderTodos();render();showOnly(authView);syncState("","未登入");return;
   }
   await loadSchedules();
+  loadTodos();
   const lastId=getLastView();
   if(lastId&&schedules.some(s=>s.id===lastId)){
     await openSchedule(lastId);
@@ -837,6 +946,14 @@ $("signOutBtn").addEventListener("click",async()=>{
 });
 $("overviewSignOutBtn").addEventListener("click",async()=>{
   await sb.auth.signOut();
+});
+$("todoForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const inp=$("todoInput"),text=inp.value.trim();
+  const dueDate=$("todoDueDate").value,dueTime=$("todoDueTime").value;
+  if(!text)return;
+  inp.value="";$("todoDueDate").value="";$("todoDueTime").value="";
+  await addTodo(text,dueDate||null,dueTime||null);
 });
 $("addEventBtn").addEventListener("click",()=>openEventModal());
 $("backToOverviewBtn").addEventListener("click",backToOverview);
