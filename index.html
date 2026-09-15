@@ -29,10 +29,10 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
 .btn.danger:not(:disabled):hover{background:#b03535;border-color:#b03535}
 .btn:disabled{opacity:.55;cursor:not-allowed}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.layout{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(24,36,66,.06)}
 .schedule-wrap{overflow:auto}
-.schedule{min-width:1000px;display:grid;grid-template-columns:90px repeat(5,minmax(165px,1fr));grid-template-rows:56px repeat(690,1.2px);position:relative}
+.schedule{min-width:1000px;display:grid;grid-template-columns:90px repeat(5,minmax(165px,1fr));grid-template-rows:56px repeat(810,1.2px);position:relative}
 .corner,.day,.time,.cell{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
 .corner,.day{display:flex;align-items:center;justify-content:center;font-weight:800}
 .corner{background:#eef2f8}
@@ -92,6 +92,10 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .note-dot{position:absolute;bottom:3px;right:5px;font-size:8px;opacity:.55;line-height:1;pointer-events:none}
 .em-actions{justify-content:space-between}
 .em-actions-right{display:flex;gap:8px}
+.event-info-modal{max-width:380px}
+.ei-strip{height:6px;border-radius:6px 6px 0 0;margin:-20px -20px 14px}
+.ei-meta{color:var(--muted);font-size:14px;margin:4px 0 0}
+.ei-notes{background:#f6f8fc;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.6;margin-top:10px;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -187,6 +191,19 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
+<div id="eventInfoOverlay" class="modal-overlay hidden">
+  <div class="card modal event-info-modal">
+    <div class="ei-strip" id="eiStrip"></div>
+    <h3 id="eiName"></h3>
+    <p id="eiMeta" class="ei-meta"></p>
+    <p id="eiNotes" class="ei-notes hidden"></p>
+    <div class="modal-actions">
+      <button class="btn" id="eiCloseBtn" type="button">關閉</button>
+      <button class="btn primary" id="eiEditBtn" type="button">修改</button>
+    </div>
+  </div>
+</div>
+
 <div id="eventModalOverlay" class="modal-overlay hidden">
   <div class="card modal event-modal">
     <h3 id="emTitle">新增事項</h3>
@@ -199,7 +216,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
       </select>
     </div>
     <div class="row">
-      <div class="field"><label for="emStart">開始時間</label><input id="emStart" type="time" min="10:00" max="21:29" step="60"></div>
+      <div class="field"><label for="emStart">開始時間</label><input id="emStart" type="time" min="08:00" max="21:29" step="60"></div>
       <div class="field"><label for="emEnd">結束時間</label><input id="emEnd" type="time" min="10:01" max="21:30" step="60"></div>
     </div>
     <div class="field">
@@ -242,7 +259,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
-<div class="version-tag">v1.2.2</div>
+<div class="version-tag">v1.2.3</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -347,6 +364,26 @@ modalConfirmBtn.addEventListener("click",async()=>{
   modalConfirmBtn.disabled=false;modalCancelBtn.disabled=false;
 });
 
+const colorBorder={purple:"#9d78e8",green:"#6ac29b",pink:"#e987ac",yellow:"#dfb95b",blue:"#77a8e2",orange:"#e9a06b",indigo:"#8993e8"};
+const dayNames=["","星期一","星期二","星期三","星期四","星期五"];
+let eiCurrentId=null;
+function openEventInfo(id){
+  const ev=events.find(x=>x.id===id);if(!ev)return;
+  eiCurrentId=id;
+  $("eiStrip").style.background=colorBorder[ev.color]||"#9d78e8";
+  $("eiName").textContent=ev.name;
+  $("eiMeta").textContent=(dayNames[ev.day]||"")+" · "+normTime(ev.start_time)+"–"+normTime(ev.end_time);
+  const notesEl=$("eiNotes");
+  if(ev.notes){notesEl.textContent=ev.notes;notesEl.classList.remove("hidden")}
+  else{notesEl.classList.add("hidden")}
+  $("eventInfoOverlay").classList.remove("hidden");
+}
+function closeEventInfo(){$("eventInfoOverlay").classList.add("hidden");eiCurrentId=null}
+$("eiCloseBtn").addEventListener("click",closeEventInfo);
+$("eiEditBtn").addEventListener("click",()=>{const id=eiCurrentId;closeEventInfo();openEventModal(id)});
+$("eventInfoOverlay").addEventListener("click",e=>{if(e.target===$("eventInfoOverlay"))closeEventInfo()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("eventInfoOverlay").classList.contains("hidden"))closeEventInfo()});
+
 let emSelectedColor="purple";
 function setEmColor(c){
   emSelectedColor=validColors.includes(c)?c:"purple";
@@ -390,7 +427,7 @@ async function saveEventModal(){
   const s=mins(start);
   if(!name)return setErr("請輸入事項名稱。");
   if(day<1||day>5)return setErr("星期設定不正確。");
-  if(!Number.isFinite(s)||s<600||s>1289)return setErr("開始時間需介於 10:00–21:29。");
+  if(!Number.isFinite(s)||s<480||s>1289)return setErr("開始時間需介於 08:00–21:29。");
   if(!end)end=fmt(Math.min(s+60,1290));
   const en=mins(end);
   if(!Number.isFinite(en)||en<=s||en>1290)return setErr("結束時間必須晚於開始時間，且不超過 21:30。");
@@ -436,7 +473,7 @@ function mins(t){
 }
 function fmt(m){return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")}
 function normTime(t){return String(t||"").slice(0,5)}
-function row(t){return mins(t)-600+2}
+function row(t){return mins(t)-480+2}
 
 function base(){
   schedule.innerHTML="";
@@ -444,9 +481,9 @@ function base(){
   ["星期一","星期二","星期三","星期四","星期五"].forEach((x,i)=>{
     const d=document.createElement("div");d.className="day "+["mon","tue","wed","thu","fri"][i];d.style.gridColumn=String(i+2);d.style.gridRow="1";d.textContent=x;schedule.appendChild(d)
   });
-  for(let i=0;i<23;i++){
+  for(let i=0;i<27;i++){
     const startRow=2+i*30;
-    const t=document.createElement("div");t.className="time";t.style.gridColumn="1";t.style.gridRow=startRow+" / span 30";t.textContent=fmt(600+i*30);schedule.appendChild(t);
+    const t=document.createElement("div");t.className="time";t.style.gridColumn="1";t.style.gridRow=startRow+" / span 30";t.textContent=fmt(480+i*30);schedule.appendChild(t);
     for(let col=2;col<=6;col++){
       const cell=document.createElement("div");cell.className="cell";cell.style.gridColumn=String(col);cell.style.gridRow=startRow+" / span 30";schedule.appendChild(cell)
     }
@@ -456,7 +493,7 @@ function render(){
   base();
   events.slice().sort((a,b)=>a.day-b.day||mins(a.start_time)-mins(b.start_time)).forEach(ev=>{
     const s=mins(ev.start_time), e=mins(ev.end_time);
-    if(!Number.isFinite(s)||s<600||s>1289)return;
+    if(!Number.isFinite(s)||s<480||s>1289)return;
     const end=Number.isFinite(e)&&e>s?Math.min(e,1290):Math.min(s+60,1290);
     const span=Math.max(1,end-s);
     const b=document.createElement("button");b.type="button";b.className="event c-"+(validColors.includes(ev.color)?ev.color:"purple");
@@ -465,7 +502,7 @@ function render(){
     const nn=document.createElement("div");nn.className="en";nn.textContent=ev.name;
     b.append(tt,nn);
     if(ev.notes){const nd=document.createElement("span");nd.className="note-dot";nd.title=ev.notes;nd.textContent="●";b.appendChild(nd)}
-    b.addEventListener("click",()=>openEventModal(ev.id));schedule.appendChild(b);
+    b.addEventListener("click",()=>openEventInfo(ev.id));schedule.appendChild(b);
   });
   seedBtn.disabled = events.length > 0;
 }
