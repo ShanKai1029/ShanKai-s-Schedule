@@ -305,7 +305,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
-<div class="version-tag">v1.3.0</div>
+<div class="version-tag">v1.3.1</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -414,8 +414,10 @@ const TODOS_TABLE="todos";
 let todos=[];
 
 function groupTodos(){
-  const todayStr=new Date().toISOString().slice(0,10);
-  const now=new Date();const nowMins=now.getHours()*60+now.getMinutes();
+  const taipeiNow=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Taipei'});
+  const todayStr=taipeiNow.slice(0,10);
+  const tp=taipeiNow.slice(11,16).split(':').map(Number);
+  const nowMins=tp[0]*60+tp[1];
   const groups={overdue:[],today:[],later:[]};
   todos.forEach(t=>{
     if(!t.due_date){groups.later.push(t);return}

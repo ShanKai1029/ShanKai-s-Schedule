@@ -90,6 +90,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 
 ## 版本紀錄
 
+- v1.3.1（2026-09-16）：修正待辦事項分組以台北時區（UTC+8）判斷今天日期，避免 UTC 午夜前的 8 小時誤判為「之後」。
 - v1.3.0（2026-09-16）：新增待辦事項功能。課表右側顯示全帳號共用的待辦清單，每項可設定到期日與時間，依過期 / 今天 / 之後自動分組，可勾選完成、刪除，雲端即時同步。**升級說明**：需在 Supabase SQL Editor 執行以下 SQL 建立 todos 表：`CREATE TABLE IF NOT EXISTS public.todos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, text text NOT NULL, done boolean NOT NULL DEFAULT false, due_date date, due_time time, created_at timestamptz NOT NULL DEFAULT now()); ALTER TABLE public.todos ENABLE ROW LEVEL SECURITY;` 並建立 SELECT / INSERT / UPDATE / DELETE 的 RLS Policy（參考 setup.sql）。
 - v1.2.4（2026-09-15）：說明欄（原「備註」）支援 URL 自動轉超連結；圖片網址直接顯示圖片；可上傳圖片至 Supabase Storage；資訊視窗放大（540px）；同一時段多個事項自動並排。**升級說明（圖片上傳功能）**：需在 Supabase SQL Editor 執行以下 SQL 建立圖片 bucket：`INSERT INTO storage.buckets (id, name, public) VALUES ('event-images', 'event-images', true) ON CONFLICT DO NOTHING;` 並建立對應的 Storage Policies（INSERT/SELECT/DELETE）。
 - v1.2.3（2026-09-15）：課表頁面置中；時間格從 08:00 開始（原為 10:00）；點擊事項先顯示資訊視窗（名稱、時間、說明），需按「修改」才進入編輯。
