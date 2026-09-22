@@ -78,7 +78,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 - 每個事項可填寫說明，有說明時卡片右下角顯示小圓點；說明中的網址自動轉為超連結，圖片網址直接顯示圖片
 - 說明欄可上傳圖片至 Supabase Storage（需先在 Supabase 建立 storage bucket，詳見下方升級說明）
 - 同一天同一時段有多個事項時，自動並排顯示，不會互相覆蓋
-- 課表右側有全帳號共用的待辦事項清單，可設定到期日與時間；依過期 / 今天 / 之後分組顯示
+- 課表右側有全帳號共用的待辦事項清單，可設定到期日與時間；分「進行中／已完成」分頁，進行中依過期 / 今天 / 之後分組顯示；勾選完成時有滑出動畫，完成的項目會保留在「已完成」分頁並可刪除
 - 時間格顯示範圍 08:00–21:30
 - 開始與結束時間可精確到任意分鐘
 - 14:20 會依比例放在 14:00–14:30 區間的約 2/3 位置
@@ -90,6 +90,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_xxxxxxxxx";
 
 ## 版本紀錄
 
+- v1.4.0（2026-09-22）：待辦事項新增「進行中／已完成」分頁。勾選完成時該項目會以滑出淡出動畫消失，並移到「已完成」分頁保留，不會直接不見；已完成分頁裡的項目一樣可以刪除。
 - v1.3.2（2026-09-16）：說明視窗加寬（680px）。
 - v1.3.1（2026-09-16）：修正待辦事項分組以台北時區（UTC+8）判斷今天日期，避免 UTC 午夜前的 8 小時誤判為「之後」。
 - v1.3.0（2026-09-16）：新增待辦事項功能。課表右側顯示全帳號共用的待辦清單，每項可設定到期日與時間，依過期 / 今天 / 之後自動分組，可勾選完成、刪除，雲端即時同步。**升級說明**：需在 Supabase SQL Editor 執行以下 SQL 建立 todos 表：`CREATE TABLE IF NOT EXISTS public.todos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, text text NOT NULL, done boolean NOT NULL DEFAULT false, due_date date, due_time time, created_at timestamptz NOT NULL DEFAULT now()); ALTER TABLE public.todos ENABLE ROW LEVEL SECURITY;` 並建立 SELECT / INSERT / UPDATE / DELETE 的 RLS Policy（參考 setup.sql）。

@@ -124,6 +124,12 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .todo-date-row input{width:100%;border:1px solid #cfd7e3;border-radius:9px;padding:7px 8px;font:inherit;font-size:13px;color:var(--text);outline:none}
 .todo-date-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
 .todo-empty{color:var(--muted);font-size:13px;padding:6px 0}
+.todo-tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.todo-tab{border:none;background:none;color:var(--muted);font-weight:700;font-size:13px;padding:6px 10px;cursor:pointer;border-bottom:2px solid transparent;transition:color .12s,border-color .12s}
+.todo-tab:hover{color:var(--text)}
+.todo-tab.active{color:var(--accent);border-color:var(--accent)}
+.todo-item.leaving{animation:todoLeave .22s ease forwards;pointer-events:none}
+@keyframes todoLeave{to{opacity:0;transform:translateX(36px)}}
 </style>
 </head>
 <body>
@@ -196,6 +202,10 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 
       <div class="card todo-panel" id="todoPanel">
         <h2>待辦事項</h2>
+        <div class="todo-tabs" id="todoTabs">
+          <button type="button" class="todo-tab active" data-tab="active">進行中</button>
+          <button type="button" class="todo-tab" data-tab="done">已完成</button>
+        </div>
         <div id="todoList" class="todo-list"></div>
         <form id="todoForm" class="todo-form" autocomplete="off">
           <input id="todoInput" type="text" maxlength="100" placeholder="新增待辦事項…" class="todo-input">
@@ -305,7 +315,7 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
   </div>
 </div>
 
-<div class="version-tag">v1.3.2</div>
+<div class="version-tag">v1.4.0</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -412,6 +422,7 @@ modalConfirmBtn.addEventListener("click",async()=>{
 
 const TODOS_TABLE="todos";
 let todos=[];
+let todoTab="active";
 
 function groupTodos(){
   const taipeiNow=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Taipei'});
@@ -419,7 +430,7 @@ function groupTodos(){
   const tp=taipeiNow.slice(11,16).split(':').map(Number);
   const nowMins=tp[0]*60+tp[1];
   const groups={overdue:[],today:[],later:[]};
-  todos.forEach(t=>{
+  todos.filter(t=>!t.done).forEach(t=>{
     if(!t.due_date){groups.later.push(t);return}
     if(t.due_date<todayStr){groups.overdue.push(t);return}
     if(t.due_date===todayStr){
@@ -435,7 +446,7 @@ function makeTodoRow(todo,isOverdue){
   row.className="todo-item"+(todo.done?" done":"")+(isOverdue?" overdue":"");
   const uid="tc-"+todo.id.replace(/-/g,"").slice(0,8);
   const cb=document.createElement("input");cb.type="checkbox";cb.className="todo-check";cb.id=uid;cb.checked=todo.done;
-  cb.addEventListener("change",()=>toggleTodo(todo.id,cb.checked));
+  cb.addEventListener("change",()=>toggleTodo(todo.id,cb.checked,row));
   const body=document.createElement("div");body.className="todo-item-body";
   const lb=document.createElement("label");lb.htmlFor=uid;lb.className="todo-item-text";lb.textContent=todo.text;
   body.appendChild(lb);
@@ -450,16 +461,22 @@ function makeTodoRow(todo,isOverdue){
 }
 function renderTodos(){
   const list=$("todoList");list.innerHTML="";
-  const groups=groupTodos();
-  const sections=[{key:"overdue",label:"過期",cls:"overdue"},{key:"today",label:"今天",cls:"today"},{key:"later",label:"之後",cls:""}];
-  let any=false;
-  sections.forEach(({key,label,cls})=>{
-    const items=groups[key];if(!items.length)return;any=true;
-    const lbl=document.createElement("div");lbl.className="todo-group-label"+(cls?" "+cls:"");lbl.textContent=label;
-    list.appendChild(lbl);
-    items.forEach(t=>list.appendChild(makeTodoRow(t,key==="overdue")));
-  });
-  if(!any){const p=document.createElement("p");p.className="todo-empty";p.textContent="沒有待辦事項";list.appendChild(p)}
+  if(todoTab==="active"){
+    const groups=groupTodos();
+    const sections=[{key:"overdue",label:"過期",cls:"overdue"},{key:"today",label:"今天",cls:"today"},{key:"later",label:"之後",cls:""}];
+    let any=false;
+    sections.forEach(({key,label,cls})=>{
+      const items=groups[key];if(!items.length)return;any=true;
+      const lbl=document.createElement("div");lbl.className="todo-group-label"+(cls?" "+cls:"");lbl.textContent=label;
+      list.appendChild(lbl);
+      items.forEach(t=>list.appendChild(makeTodoRow(t,key==="overdue")));
+    });
+    if(!any){const p=document.createElement("p");p.className="todo-empty";p.textContent="沒有待辦事項";list.appendChild(p)}
+  }else{
+    const done=todos.filter(t=>t.done);
+    if(!done.length){const p=document.createElement("p");p.className="todo-empty";p.textContent="還沒有已完成的待辦事項";list.appendChild(p);return}
+    done.forEach(t=>list.appendChild(makeTodoRow(t,false)));
+  }
 }
 async function loadTodos(){
   if(!session)return;
@@ -474,9 +491,18 @@ async function addTodo(text,dueDate,dueTime){
   const{error}=await sb.from(TODOS_TABLE).insert(row);
   if(!error)await loadTodos();
 }
-async function toggleTodo(id,done){
-  todos=todos.map(t=>t.id===id?{...t,done}:t);renderTodos();
-  await sb.from(TODOS_TABLE).update({done}).eq("id",id);
+async function toggleTodo(id,done,row){
+  const commit=async()=>{
+    todos=todos.map(t=>t.id===id?{...t,done}:t);
+    renderTodos();
+    await sb.from(TODOS_TABLE).update({done}).eq("id",id);
+  };
+  if(row){
+    row.classList.add("leaving");
+    row.addEventListener("animationend",commit,{once:true});
+  }else{
+    await commit();
+  }
 }
 async function deleteTodo(id){
   todos=todos.filter(t=>t.id!==id);renderTodos();
@@ -948,6 +974,14 @@ $("signOutBtn").addEventListener("click",async()=>{
 });
 $("overviewSignOutBtn").addEventListener("click",async()=>{
   await sb.auth.signOut();
+});
+document.querySelectorAll(".todo-tab").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    if(todoTab===btn.dataset.tab)return;
+    todoTab=btn.dataset.tab;
+    document.querySelectorAll(".todo-tab").forEach(b=>b.classList.toggle("active",b===btn));
+    renderTodos();
+  });
 });
 $("todoForm").addEventListener("submit",async e=>{
   e.preventDefault();
