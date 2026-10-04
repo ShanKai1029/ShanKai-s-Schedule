@@ -50,3 +50,27 @@ create policy "todos_select_own" on public.todos for select using (auth.uid() = 
 create policy "todos_insert_own" on public.todos for insert with check (auth.uid() = user_id);
 create policy "todos_update_own" on public.todos for update using (auth.uid() = user_id);
 create policy "todos_delete_own" on public.todos for delete using (auth.uid() = user_id);
+
+-- Read-only schedule share links.
+alter table public.schedules add column if not exists share_token uuid;
+create unique index if not exists schedules_share_token_idx
+  on public.schedules(share_token) where share_token is not null;
+
+create or replace function public.get_shared_schedule(token uuid)
+returns table(
+  schedule_name text,
+  event_id uuid,
+  event_name text,
+  day int,
+  start_time text,
+  end_time text,
+  color text,
+  notes text
+)
+language sql security definer set search_path = public as $$
+  select s.name, e.id, e.name, e.day, e.start_time, e.end_time, e.color, e.notes
+  from public.schedules s
+  join public.schedule_events e on e.schedule_id = s.id
+  where s.share_token = token;
+$$;
+grant execute on function public.get_shared_schedule(uuid) to anon, authenticated;
