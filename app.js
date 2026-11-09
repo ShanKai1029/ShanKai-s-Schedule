@@ -845,18 +845,12 @@ $("searchInput").addEventListener("input",()=>{
   searchQuery=$("searchInput").value.trim().toLowerCase();
   renderTodos();render();
 });
-$("todoUseStartDate").addEventListener("change",e=>{
-  $("todoStartDate").classList.toggle("hidden",!e.target.checked);
-  if(!e.target.checked)$("todoStartDate").value="";
-});
 $("todoForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const inp=$("todoInput"),text=inp.value.trim();
-  const dueDate=$("todoDueDate").value,dueTime=$("todoDueTime").value;
-  const startDate=$("todoUseStartDate").checked?$("todoStartDate").value:"";
+  const startDate=$("todoStartDate").value,dueDate=$("todoDueDate").value,dueTime=$("todoDueTime").value;
   if(!text)return;
-  inp.value="";$("todoDueDate").value="";$("todoDueTime").value="";
-  $("todoStartDate").value="";$("todoStartDate").classList.add("hidden");$("todoUseStartDate").checked=false;
+  inp.value="";$("todoStartDate").value="";$("todoDueDate").value="";$("todoDueTime").value="";
   await addTodo(text,dueDate||null,dueTime||null,startDate||null);
 });
 $("addEventBtn").addEventListener("click",()=>openEventModal());

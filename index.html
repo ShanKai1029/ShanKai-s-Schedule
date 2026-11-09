@@ -92,12 +92,12 @@
         <div id="todoList" class="todo-list"></div>
         <form id="todoForm" class="todo-form" autocomplete="off">
           <input id="todoInput" type="text" maxlength="100" placeholder="新增待辦事項…" class="todo-input">
-          <label class="todo-range-toggle"><input type="checkbox" id="todoUseStartDate"> 也設定開始日期</label>
-          <input id="todoStartDate" type="date" title="開始日期" class="hidden">
+          <div class="todo-date-row todo-date-labels"><span>開始日期（可選）</span><span>到期日</span></div>
           <div class="todo-date-row">
+            <input id="todoStartDate" type="date" title="開始日期（可選）">
             <input id="todoDueDate" type="date" title="到期日">
-            <input id="todoDueTime" type="time" title="到期時間（可選）">
           </div>
+          <input id="todoDueTime" type="time" title="到期時間（可選）" class="todo-input">
           <button type="submit" class="btn primary">＋ 新增</button>
         </form>
       </div>
