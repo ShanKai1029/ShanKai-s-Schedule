@@ -127,6 +127,10 @@ h1{margin:0;font-size:clamp(28px,4vw,48px)}
 .todo-form{display:flex;flex-direction:column;gap:6px;margin-top:4px;border-top:1px solid var(--line);padding-top:12px}
 .todo-input{width:100%;border:1px solid var(--input-border);border-radius:9px;padding:8px 10px;font:inherit;color:var(--text);background:var(--input-bg);outline:none}
 .todo-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
+.todo-range-toggle{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}
+.todo-range-toggle input{cursor:pointer}
+#todoStartDate{width:100%;border:1px solid var(--input-border);border-radius:9px;padding:7px 8px;font:inherit;font-size:13px;color:var(--text);background:var(--input-bg);outline:none}
+#todoStartDate:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}
 .todo-date-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .todo-date-row input{width:100%;border:1px solid var(--input-border);border-radius:9px;padding:7px 8px;font:inherit;font-size:13px;color:var(--text);background:var(--input-bg);outline:none}
 .todo-date-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(68,102,204,.12)}

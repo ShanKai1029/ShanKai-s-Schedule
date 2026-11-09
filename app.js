@@ -168,11 +168,12 @@ async function loadTodos(){
   const{data,error}=await sb.from(TODOS_TABLE).select("*").eq("user_id",session.user.id).order("due_date",{nullsFirst:false}).order("due_time",{nullsFirst:false}).order("created_at");
   if(!error){todos=data||[];renderTodos()}
 }
-async function addTodo(text,dueDate,dueTime){
+async function addTodo(text,dueDate,dueTime,startDate){
   if(!session||!text)return;
   const row={text,done:false,user_id:session.user.id};
   if(dueDate)row.due_date=dueDate;
   if(dueTime)row.due_time=dueTime;
+  if(startDate)row.start_date=startDate;
   const{error}=await sb.from(TODOS_TABLE).insert(row);
   if(!error)await loadTodos();
 }
@@ -844,13 +845,19 @@ $("searchInput").addEventListener("input",()=>{
   searchQuery=$("searchInput").value.trim().toLowerCase();
   renderTodos();render();
 });
+$("todoUseStartDate").addEventListener("change",e=>{
+  $("todoStartDate").classList.toggle("hidden",!e.target.checked);
+  if(!e.target.checked)$("todoStartDate").value="";
+});
 $("todoForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const inp=$("todoInput"),text=inp.value.trim();
   const dueDate=$("todoDueDate").value,dueTime=$("todoDueTime").value;
+  const startDate=$("todoUseStartDate").checked?$("todoStartDate").value:"";
   if(!text)return;
   inp.value="";$("todoDueDate").value="";$("todoDueTime").value="";
-  await addTodo(text,dueDate||null,dueTime||null);
+  $("todoStartDate").value="";$("todoStartDate").classList.add("hidden");$("todoUseStartDate").checked=false;
+  await addTodo(text,dueDate||null,dueTime||null,startDate||null);
 });
 $("addEventBtn").addEventListener("click",()=>openEventModal());
 $("backToOverviewBtn").addEventListener("click",backToOverview);
